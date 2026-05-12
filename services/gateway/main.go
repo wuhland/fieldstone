@@ -30,20 +30,29 @@ func main() {
 
 	ctx := context.Background()
 
-	// TODO(fieldstone): OIDC JWKS cache is initialized at startup.
-	// In production, the OIDC provider must be reachable on startup.
-	// For local dev, set OIDC_ISSUER_URL to a reachable provider.
-	jwksCache, err := newJWKSCache(ctx, cfg.OIDCIssuerURL)
-	if err != nil {
-		slog.Error("failed to initialize JWKS cache", "error", err)
-		os.Exit(1)
+	// Build the auth middleware. In dev (DEV_DISABLE_AUTH=true) all requests
+	// are treated as authenticated so the service can be exercised without an
+	// OIDC provider. Never set this in production.
+	var authMW func(http.Handler) http.Handler
+	if cfg.DevDisableAuth {
+		slog.Warn("DEV_DISABLE_AUTH=true — authentication is disabled, do not use in production")
+		authMW = func(next http.Handler) http.Handler { return next }
+	} else {
+		if cfg.OIDCIssuerURL == "" || cfg.OIDCAudience == "" {
+			slog.Error("OIDC_ISSUER_URL and OIDC_AUDIENCE are required when DEV_DISABLE_AUTH is false")
+			os.Exit(1)
+		}
+		jwksCache, err := newJWKSCache(ctx, cfg.OIDCIssuerURL)
+		if err != nil {
+			slog.Error("failed to initialize JWKS cache", "error", err)
+			os.Exit(1)
+		}
+		authMW = auth.Middleware(&auth.MiddlewareConfig{
+			IssuerURL: cfg.OIDCIssuerURL,
+			Audience:  cfg.OIDCAudience,
+			Cache:     jwksCache,
+		})
 	}
-
-	authMW := auth.Middleware(&auth.MiddlewareConfig{
-		IssuerURL: cfg.OIDCIssuerURL,
-		Audience:  cfg.OIDCAudience,
-		Cache:     jwksCache,
-	})
 
 	rl := newRateLimiter(100, time.Minute) // 100 req/min per IP on public routes
 
