@@ -3,7 +3,7 @@
 dev:
 	docker compose --env-file .env \
 		-f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
-		--profile core --profile permits up --build
+		--profile core --profile permits up --build --force-recreate
 
 test:
 	go test ./...
