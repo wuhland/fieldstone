@@ -5,6 +5,15 @@ dev:
 		-f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
 		--profile core --profile permits up --build --force-recreate
 
+# Rebuild and restart a single service without touching the rest.
+# Usage: make rebuild SERVICE=gateway
+rebuild:
+	@if [ -z "$(SERVICE)" ]; then echo "Usage: SERVICE=gateway make rebuild"; exit 1; fi
+	docker compose --env-file .env \
+		-f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
+		--profile core --profile permits \
+		up --build --force-recreate --no-deps $(SERVICE)
+
 test:
 	go test ./...
 
