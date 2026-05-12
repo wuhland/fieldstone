@@ -1,10 +1,8 @@
-version: "3.9"
-
 # Development overrides: expose internal ports, use text logging, enable hot reload
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "5433:5432"  # host 5433 avoids conflict with a local postgres on 5432
 
   nats:
     ports:

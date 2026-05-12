@@ -1,0 +1,13 @@
+# Environment — never commit real credentials
+.env
+
+# Go build output
+/bin/
+*.test
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+
+# OS
+.DS_Store
