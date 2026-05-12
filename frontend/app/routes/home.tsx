@@ -1,10 +1,15 @@
+import type { MetaFunction } from "react-router";
+
+export const meta: MetaFunction = () => [
+  { title: "City Services Portal | Fieldstone" },
+  { name: "description", content: "Submit requests, check permit status, and access public records." },
+];
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-4xl px-4 py-16">
-        <h1 className="text-3xl font-bold text-gray-900">
-          City Services Portal
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900">City Services Portal</h1>
         <p className="mt-4 text-gray-600">
           Submit requests, check permit status, and access public records.
         </p>

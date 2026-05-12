@@ -1,32 +1,54 @@
-"use client";
-
 import { useState } from "react";
+import { Form, useActionData, useNavigation } from "react-router";
+import type { ActionFunctionArgs, MetaFunction } from "react-router";
 import DynamicMetadataForm from "@/components/forms/DynamicMetadataForm";
 
-export default function NewRequestPage() {
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+export const meta: MetaFunction = () => [
+  { title: "Submit a Request | Fieldstone" },
+];
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    const form = new FormData(e.currentTarget);
-    await fetch("/v1/requests", {
+export async function action({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+
+  let metadata: Record<string, unknown> = {};
+  try {
+    const raw = formData.get("metadata") as string;
+    if (raw) metadata = JSON.parse(raw);
+  } catch {}
+
+  const body = {
+    request_type: formData.get("request_type"),
+    description: formData.get("description"),
+    submitter_email: formData.get("submitter_email") || undefined,
+    location: {},
+    metadata,
+  };
+
+  const apiUrl = process.env.API_URL ?? "http://localhost:8080";
+  try {
+    const res = await fetch(`${apiUrl}/v1/requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        request_type: form.get("request_type"),
-        description: form.get("description"),
-        submitter_email: form.get("submitter_email"),
-        location: {},
-        metadata: {},
-      }),
+      body: JSON.stringify(body),
     });
-    setSubmitting(false);
-    setSubmitted(true);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: (err as { error?: string }).error ?? "Submission failed. Please try again." };
+    }
+  } catch {
+    return { error: "Could not reach the server. Please try again." };
   }
 
-  if (submitted) {
+  return { success: true };
+}
+
+export default function NewRequestPage() {
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const submitting = navigation.state === "submitting";
+  const [metadata, setMetadata] = useState<Record<string, unknown>>({});
+
+  if (actionData?.success) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-16">
         <div className="rounded-lg border border-green-200 bg-green-50 p-6">
@@ -50,11 +72,18 @@ export default function NewRequestPage() {
         Report an issue such as a pothole, broken streetlight, or code violation.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+      {actionData?.error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-red-700">{actionData.error}</p>
+        </div>
+      )}
+
+      <Form method="post" className="mt-8 space-y-6">
+        {/* Carries serialized custom-field values from DynamicMetadataForm */}
+        <input type="hidden" name="metadata" value={JSON.stringify(metadata)} />
+
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Request type
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Request type</label>
           <select
             name="request_type"
             required
@@ -70,9 +99,7 @@ export default function NewRequestPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Description
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Description</label>
           <textarea
             name="description"
             required
@@ -94,8 +121,7 @@ export default function NewRequestPage() {
           />
         </div>
 
-        {/* Custom fields defined by the city for service_request metadata */}
-        <DynamicMetadataForm resourceType="service_request" />
+        <DynamicMetadataForm resourceType="service_request" onChange={setMetadata} />
 
         <button
           type="submit"
@@ -104,7 +130,7 @@ export default function NewRequestPage() {
         >
           {submitting ? "Submitting…" : "Submit request"}
         </button>
-      </form>
+      </Form>
     </main>
   );
 }
