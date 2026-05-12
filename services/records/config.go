@@ -7,9 +7,10 @@ import (
 
 type Config struct {
 	config.BaseConfig
-	DatabaseDSN        string `env:"RECORDS_DATABASE_DSN" env-required:"true"`
-	Addr               string `env:"RECORDS_ADDR"         env-default:":8083"`
-	WorkflowServiceURL string `env:"WORKFLOW_SERVICE_URL" env-required:"true"`
+	DatabaseDSN        string `env:"RECORDS_DATABASE_DSN"  env-required:"true"`
+	Addr               string `env:"RECORDS_ADDR"          env-default:":8083"`
+	WorkflowServiceURL string `env:"WORKFLOW_SERVICE_URL"  env-required:"true"`
+	IdentityServiceURL string `env:"IDENTITY_SERVICE_URL"  env-required:"true"`
 }
 
 func loadConfig() (*Config, error) {
