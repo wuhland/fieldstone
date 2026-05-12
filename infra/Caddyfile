@@ -1,0 +1,21 @@
+{
+    admin off
+    auto_https off
+}
+
+:80 {
+    # Route API calls to the gateway
+    handle /v1/* {
+        reverse_proxy gateway:8080
+    }
+
+    # Route everything else to the frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

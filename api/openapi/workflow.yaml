@@ -1,0 +1,120 @@
+openapi: "3.1.0"
+info:
+  title: Fieldstone Workflow Service
+  version: "0.1.0"
+  description: |
+    Configurable state machine engine. Reads workflow YAML configs at startup.
+    Domain services call /validate before any status change.
+
+servers:
+  - url: /v1
+
+components:
+  schemas:
+    Status:
+      type: object
+      required: [name, label, terminal]
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        terminal:
+          type: boolean
+
+    Transition:
+      type: object
+      required: [from, to, roles]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        notify_event:
+          type: string
+
+paths:
+  /workflow/{resource_type}/statuses:
+    get:
+      summary: List valid statuses
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Status"
+
+  /workflow/{resource_type}/transitions:
+    get:
+      summary: List valid transitions
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transitions
+
+  /workflow/{resource_type}/validate:
+    post:
+      summary: Validate a status transition
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to, role]
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Transition allowed
+        "422":
+          description: Transition not allowed
+
+  /workflow/{resource_type}/initial:
+    get:
+      summary: Get initial status for new resources
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Initial status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initial_status:
+                    type: string

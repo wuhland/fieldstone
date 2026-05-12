@@ -1,0 +1,37 @@
+resource_type: service_request
+initial_status: open
+statuses:
+  - name: open
+    label: "Open"
+    terminal: false
+  - name: assigned
+    label: "Assigned"
+    terminal: false
+  - name: in_progress
+    label: "In Progress"
+    terminal: false
+  - name: resolved
+    label: "Resolved"
+    terminal: true
+  - name: closed
+    label: "Closed"
+    terminal: true
+transitions:
+  - from: open
+    to: assigned
+    roles: [staff, reviewer, admin]
+    notify_event: fieldstone.requests.service_request.assigned
+  - from: assigned
+    to: in_progress
+    roles: [staff, reviewer, admin]
+  - from: in_progress
+    to: resolved
+    roles: [staff, reviewer, admin]
+    notify_event: fieldstone.requests.service_request.closed
+  - from: resolved
+    to: closed
+    roles: [admin, system]
+  - from: open
+    to: closed
+    roles: [admin]
+    notify_event: fieldstone.requests.service_request.closed

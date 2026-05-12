@@ -1,0 +1,98 @@
+openapi: "3.1.0"
+info:
+  title: Fieldstone Gateway API
+  version: "0.1.0"
+  description: |
+    Public-facing API gateway for the Fieldstone civic services platform.
+    Staff endpoints require a Bearer JWT from the configured OIDC provider.
+    Citizen endpoints (marked "public") do not require authentication.
+
+servers:
+  - url: /v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          type: string
+        request_id:
+          type: string
+          format: uuid
+
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+        version:
+          type: string
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [health]
+      security: []
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /requests:
+    post:
+      summary: Submit a 311 service request (public)
+      tags: [requests]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./requests.yaml#/components/schemas/CreateServiceRequestInput"
+      responses:
+        "201":
+          description: Request created
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /permits/{id}/status:
+    get:
+      summary: Get permit status (public)
+      tags: [permits]
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Permit status
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

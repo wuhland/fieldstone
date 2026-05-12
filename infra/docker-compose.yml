@@ -1,0 +1,179 @@
+version: "3.9"
+
+x-healthcheck-defaults: &hc-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+    restart: unless-stopped
+
+  nats:
+    image: nats:2-alpine
+    command: nats-server -js -m 8222
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/gateway/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    profiles: ["core"]
+
+  identity:
+    build:
+      context: ..
+      dockerfile: services/identity/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["core"]
+
+  permits:
+    build:
+      context: ..
+      dockerfile: services/permits/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["permits"]
+
+  requests:
+    build:
+      context: ..
+      dockerfile: services/requests/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["core"]
+
+  records:
+    build:
+      context: ..
+      dockerfile: services/records/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["records"]
+
+  workflow:
+    build:
+      context: ..
+      dockerfile: services/workflow/Dockerfile
+    env_file: ../.env
+    volumes:
+      - ../config/workflows:/etc/fieldstone/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["core"]
+
+  webhooks:
+    build:
+      context: ..
+      dockerfile: services/webhooks/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["webhooks"]
+
+  audit:
+    build:
+      context: ..
+      dockerfile: services/audit/Dockerfile
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["core"]
+
+  notify:
+    build:
+      context: ..
+      dockerfile: services/notify/Dockerfile
+    env_file: ../.env
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["notify"]
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    env_file: ../.env
+    depends_on:
+      - gateway
+    restart: unless-stopped
+    profiles: ["core"]
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - gateway
+      - frontend
+    restart: unless-stopped
+    profiles: ["core"]
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

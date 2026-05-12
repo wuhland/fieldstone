@@ -1,0 +1,45 @@
+resource_type: foia_request
+initial_status: received
+statuses:
+  - name: received
+    label: "Received"
+    terminal: false
+  - name: processing
+    label: "Processing"
+    terminal: false
+  - name: awaiting_clarification
+    label: "Awaiting Clarification"
+    terminal: false
+  - name: fulfilled
+    label: "Fulfilled"
+    terminal: true
+  - name: denied
+    label: "Denied"
+    terminal: true
+  - name: withdrawn
+    label: "Withdrawn"
+    terminal: true
+transitions:
+  - from: received
+    to: processing
+    roles: [staff, reviewer, admin]
+  - from: received
+    to: awaiting_clarification
+    roles: [staff, reviewer, admin]
+  - from: awaiting_clarification
+    to: processing
+    roles: [staff, reviewer, admin]
+  - from: processing
+    to: fulfilled
+    roles: [reviewer, admin]
+    notify_event: fieldstone.records.foia_request.status_changed
+  - from: processing
+    to: denied
+    roles: [admin]
+    notify_event: fieldstone.records.foia_request.status_changed
+  - from: received
+    to: withdrawn
+    roles: [system]
+  - from: processing
+    to: withdrawn
+    roles: [system]

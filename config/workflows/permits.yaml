@@ -1,0 +1,33 @@
+resource_type: permit
+initial_status: submitted
+statuses:
+  - name: submitted
+    label: "Submitted"
+    terminal: false
+  - name: under_review
+    label: "Under Review"
+    terminal: false
+  - name: approved
+    label: "Approved"
+    terminal: true
+  - name: rejected
+    label: "Rejected"
+    terminal: true
+  - name: expired
+    label: "Expired"
+    terminal: true
+transitions:
+  - from: submitted
+    to: under_review
+    roles: [reviewer, admin]
+  - from: under_review
+    to: approved
+    roles: [admin]
+    notify_event: fieldstone.permits.permit.approved
+  - from: under_review
+    to: rejected
+    roles: [admin]
+    notify_event: fieldstone.permits.permit.rejected
+  - from: approved
+    to: expired
+    roles: [system]
