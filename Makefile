@@ -1,7 +1,8 @@
 .PHONY: dev test test-integration test-race generate lint build migrate-up fmt vet
 
 dev:
-	docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
+	docker compose --env-file .env \
+		-f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
 		--profile core --profile permits up
 
 test:
