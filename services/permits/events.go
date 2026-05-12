@@ -39,7 +39,7 @@ func (p *publisher) drain() {
 	}
 }
 
-func (p *publisher) publish(subject string, sourceService string, eventType string, payload interface{}) {
+func (p *publisher) Publish(subject string, sourceService string, eventType string, payload any) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		slog.Error("failed to marshal event payload", "error", err)
