@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,11 +12,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/middleware"
+	natsconn "github.com/fieldstone/fieldstone/internal/nats"
+	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 	"github.com/fieldstone/fieldstone/services/identity/handlers"
-	"github.com/go-chi/chi/v5"
 )
+
+//go:embed db/migrations/*.sql
+var migrationFiles embed.FS
 
 const version = "0.1.0"
 
@@ -38,9 +45,20 @@ func main() {
 	}
 	defer pool.Close()
 
-	userH := handlers.NewUserHandler()
-	deptH := handlers.NewDepartmentHandler()
-	schemaH := handlers.NewSchemaHandler()
+	if err := runMigrations(ctx, pool, migrationFiles); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	nc, js, err := natsconn.Connect(cfg.NATSURL)
+	if err != nil {
+		slog.Error("failed to connect to NATS", "error", err)
+		os.Exit(1)
+	}
+	defer nc.Drain()
+
+	pub := newPublisher(js)
+	h := handlers.New(identitydb.New(pool), pub)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -49,21 +67,18 @@ func main() {
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
-			"status":  "ok",
-			"service": "identity",
-			"version": version,
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "ok", "service": "identity", "version": version,
 		})
 	})
 
-	r.Get("/v1/departments", deptH.ListDepartments)
-	r.Post("/v1/departments", deptH.CreateDepartment)
-	r.Get("/v1/users", userH.ListUsers)
-	r.Get("/v1/users/me", userH.GetMe)
-	r.Post("/v1/users", userH.CreateUser)
-	r.Get("/v1/config/schemas/{resource_type}", schemaH.GetSchema)
-	r.Put("/v1/config/schemas/{resource_type}", schemaH.PutSchema)
+	r.Get("/v1/departments", h.ListDepartments)
+	r.Post("/v1/departments", h.CreateDepartment)
+	r.Get("/v1/users", h.ListUsers)
+	r.Get("/v1/users/me", h.GetMe)
+	r.Post("/v1/users", h.CreateUser)
+	r.Get("/v1/config/schemas/{resource_type}", h.GetSchema)
+	r.Put("/v1/config/schemas/{resource_type}", h.PutSchema)
 
 	srv := &http.Server{
 		Addr:         cfg.Addr,
