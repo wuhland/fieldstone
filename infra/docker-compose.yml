@@ -4,6 +4,15 @@ x-healthcheck-defaults: &hc-defaults
   retries: 5
   start_period: 10s
 
+# Services that write to the database route through PgBouncer for connection
+# pooling. Services that only read config (workflow) or have no DB (gateway,
+# notify) connect to NATS only and are listed separately.
+x-db-depends: &db-depends
+  pgbouncer:
+    condition: service_healthy
+  nats:
+    condition: service_healthy
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,9 +28,27 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
     restart: unless-stopped
 
+  pgbouncer:
+    build:
+      context: pgbouncer
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD-SHELL", "nc -z localhost 5432 || exit 1"]
+    restart: unless-stopped
+
   nats:
     image: nats:2-alpine
-    command: nats-server -js -m 8222
+    command: nats-server -js -m 8222 -sd /data/jetstream
+    volumes:
+      - nats_data:/data/jetstream
     healthcheck:
       <<: *hc-defaults
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
@@ -33,8 +60,6 @@ services:
       dockerfile: services/gateway/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
       nats:
         condition: service_healthy
     ports:
@@ -48,10 +73,7 @@ services:
       dockerfile: services/identity/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["core"]
 
@@ -61,10 +83,7 @@ services:
       dockerfile: services/permits/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["permits"]
 
@@ -74,10 +93,7 @@ services:
       dockerfile: services/requests/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["core"]
 
@@ -87,10 +103,7 @@ services:
       dockerfile: services/records/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["records"]
 
@@ -102,8 +115,6 @@ services:
     volumes:
       - ../config/workflows:/etc/fieldstone/workflows:ro
     depends_on:
-      postgres:
-        condition: service_healthy
       nats:
         condition: service_healthy
     restart: unless-stopped
@@ -115,10 +126,7 @@ services:
       dockerfile: services/webhooks/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["webhooks"]
 
@@ -128,10 +136,7 @@ services:
       dockerfile: services/audit/Dockerfile
     env_file: ../.env
     depends_on:
-      postgres:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
+      <<: *db-depends
     restart: unless-stopped
     profiles: ["core"]
 
@@ -173,5 +178,6 @@ services:
 
 volumes:
   postgres_data:
+  nats_data:
   caddy_data:
   caddy_config:
