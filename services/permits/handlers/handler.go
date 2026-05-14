@@ -9,15 +9,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	permitsdb "github.com/fieldstone/fieldstone/services/permits/db/generated"
 )
 
-// Publisher publishes domain events to NATS after a successful write.
+// Publisher writes events to the outbox table within a transaction.
+// Events reach NATS only after the transaction commits, guaranteeing
+// at-least-once delivery even across process crashes.
 type Publisher interface {
-	Publish(subject, sourceService, eventType string, payload any)
+	PublishTx(ctx context.Context, tx pgx.Tx, subject, sourceService, eventType string, payload any) error
 }
 
 // WorkflowClient validates status transitions against the workflow service.
@@ -33,14 +37,15 @@ type SchemaValidator interface {
 
 // Handler holds injected dependencies for all permit endpoints.
 type Handler struct {
+	pool     *pgxpool.Pool
 	queries  *permitsdb.Queries
 	pub      Publisher
 	workflow WorkflowClient
 	schemas  SchemaValidator
 }
 
-func New(q *permitsdb.Queries, pub Publisher, wf WorkflowClient, sv SchemaValidator) *Handler {
-	return &Handler{queries: q, pub: pub, workflow: wf, schemas: sv}
+func New(pool *pgxpool.Pool, q *permitsdb.Queries, pub Publisher, wf WorkflowClient, sv SchemaValidator) *Handler {
+	return &Handler{pool: pool, queries: q, pub: pub, workflow: wf, schemas: sv}
 }
 
 // ─── Response types ───────────────────────────────────────────────────────────

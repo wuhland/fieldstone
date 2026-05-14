@@ -110,7 +110,15 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 		submitterEmail = &req.SubmitterEmail
 	}
 
-	sr, err := h.queries.CreateServiceRequest(r.Context(), requestsdb.CreateServiceRequestParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	sr, err := h.queries.WithTx(tx).CreateServiceRequest(r.Context(), requestsdb.CreateServiceRequestParams{
 		DepartmentID:   deptID,
 		RequestType:    req.RequestType,
 		Status:         initialStatus,
@@ -126,7 +134,16 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := srToResponse(sr)
-	h.pub.Publish(events.SubjectServiceRequestCreated, "requests", events.SubjectServiceRequestCreated, resp)
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectServiceRequestCreated, "requests", events.SubjectServiceRequestCreated, resp); err != nil {
+		slog.Error("write service_request.created to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit request create", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, resp)
 }
@@ -201,11 +218,19 @@ func (h *Handler) UpdateRequestStatus(w http.ResponseWriter, r *http.Request) {
 
 	oldStatus := sr.Status
 
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	var updated *requestsdb.ServiceRequest
 	if terminalStatuses[req.Status] {
-		updated, err = h.queries.CloseServiceRequest(r.Context(), id, req.Status)
+		updated, err = h.queries.WithTx(tx).CloseServiceRequest(r.Context(), id, req.Status)
 	} else {
-		updated, err = h.queries.UpdateServiceRequestStatus(r.Context(), requestsdb.UpdateServiceRequestStatusParams{
+		updated, err = h.queries.WithTx(tx).UpdateServiceRequestStatus(r.Context(), requestsdb.UpdateServiceRequestStatusParams{
 			ID:     id,
 			Status: req.Status,
 		})
@@ -217,12 +242,17 @@ func (h *Handler) UpdateRequestStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := srToResponse(updated)
-	h.pub.Publish(
-		events.SubjectServiceRequestClosed,
-		"requests",
-		events.SubjectServiceRequestClosed,
-		map[string]any{"request": resp, "from": oldStatus, "to": req.Status},
-	)
+	payload := map[string]any{"request": resp, "from": oldStatus, "to": req.Status}
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectServiceRequestClosed, "requests", events.SubjectServiceRequestClosed, payload); err != nil {
+		slog.Error("write service_request.status_changed to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit request status update", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -274,7 +304,15 @@ func (h *Handler) AssignRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.queries.AssignServiceRequest(r.Context(), requestsdb.AssignServiceRequestParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to assign request")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	updated, err := h.queries.WithTx(tx).AssignServiceRequest(r.Context(), requestsdb.AssignServiceRequestParams{
 		ID:         id,
 		AssignedTo: assigneeID,
 		Status:     "assigned",
@@ -286,12 +324,17 @@ func (h *Handler) AssignRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := srToResponse(updated)
-	h.pub.Publish(
-		events.SubjectServiceRequestAssigned,
-		"requests",
-		events.SubjectServiceRequestAssigned,
-		map[string]any{"request": resp, "assigned_to": req.AssignedTo},
-	)
+	payload := map[string]any{"request": resp, "assigned_to": req.AssignedTo}
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectServiceRequestAssigned, "requests", events.SubjectServiceRequestAssigned, payload); err != nil {
+		slog.Error("write service_request.assigned to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to assign request")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit request assignment", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to assign request")
+		return
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }

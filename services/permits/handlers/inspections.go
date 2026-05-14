@@ -57,7 +57,15 @@ func (h *Handler) ScheduleInspection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	insp, err := h.queries.CreateInspection(r.Context(), permitsdb.CreateInspectionParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to schedule inspection")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	insp, err := h.queries.WithTx(tx).CreateInspection(r.Context(), permitsdb.CreateInspectionParams{
 		PermitID:    permitID,
 		InspectorID: inspectorID,
 		ScheduledAt: req.ScheduledAt,
@@ -69,12 +77,16 @@ func (h *Handler) ScheduleInspection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := inspectionToResponse(insp)
-	h.pub.Publish(
-		events.SubjectInspectionScheduled,
-		"permits",
-		events.SubjectInspectionScheduled,
-		resp,
-	)
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectInspectionScheduled, "permits", events.SubjectInspectionScheduled, resp); err != nil {
+		slog.Error("write inspection.scheduled to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to schedule inspection")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit inspection create", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to schedule inspection")
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, resp)
 }

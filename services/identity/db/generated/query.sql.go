@@ -19,7 +19,7 @@ SELECT id, name, slug, config, created_at FROM departments ORDER BY name
 `
 
 func (q *Queries) ListDepartments(ctx context.Context) ([]*Department, error) {
-	rows, err := q.pool.Query(ctx, listDepartments)
+	rows, err := q.db.Query(ctx, listDepartments)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ SELECT id, name, slug, config, created_at FROM departments WHERE id = $1
 `
 
 func (q *Queries) GetDepartmentByID(ctx context.Context, id pgtype.UUID) (*Department, error) {
-	return scanDepartment(q.pool.QueryRow(ctx, getDepartmentByID, id))
+	return scanDepartment(q.db.QueryRow(ctx, getDepartmentByID, id))
 }
 
 const getDepartmentBySlug = `
@@ -40,7 +40,7 @@ SELECT id, name, slug, config, created_at FROM departments WHERE slug = $1
 `
 
 func (q *Queries) GetDepartmentBySlug(ctx context.Context, slug string) (*Department, error) {
-	return scanDepartment(q.pool.QueryRow(ctx, getDepartmentBySlug, slug))
+	return scanDepartment(q.db.QueryRow(ctx, getDepartmentBySlug, slug))
 }
 
 const createDepartment = `
@@ -50,7 +50,7 @@ RETURNING id, name, slug, config, created_at
 `
 
 func (q *Queries) CreateDepartment(ctx context.Context, params CreateDepartmentParams) (*Department, error) {
-	return scanDepartment(q.pool.QueryRow(ctx, createDepartment, params.Name, params.Slug, params.Config))
+	return scanDepartment(q.db.QueryRow(ctx, createDepartment, params.Name, params.Slug, params.Config))
 }
 
 func scanDepartment(row pgx.Row) (*Department, error) {
@@ -83,7 +83,7 @@ SELECT id, department_id, oidc_sub, email, role, created_at FROM staff_users ORD
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]*StaffUser, error) {
-	rows, err := q.pool.Query(ctx, listUsers)
+	rows, err := q.db.Query(ctx, listUsers)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ FROM staff_users WHERE department_id = $1 ORDER BY email
 `
 
 func (q *Queries) ListUsersByDepartment(ctx context.Context, deptID pgtype.UUID) ([]*StaffUser, error) {
-	rows, err := q.pool.Query(ctx, listUsersByDepartment, deptID)
+	rows, err := q.db.Query(ctx, listUsersByDepartment, deptID)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ SELECT id, department_id, oidc_sub, email, role, created_at FROM staff_users WHE
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (*StaffUser, error) {
-	return scanUser(q.pool.QueryRow(ctx, getUserByID, id))
+	return scanUser(q.db.QueryRow(ctx, getUserByID, id))
 }
 
 const getUserByOIDCSub = `
@@ -118,7 +118,7 @@ SELECT id, department_id, oidc_sub, email, role, created_at FROM staff_users WHE
 `
 
 func (q *Queries) GetUserByOIDCSub(ctx context.Context, sub string) (*StaffUser, error) {
-	return scanUser(q.pool.QueryRow(ctx, getUserByOIDCSub, sub))
+	return scanUser(q.db.QueryRow(ctx, getUserByOIDCSub, sub))
 }
 
 const createUser = `
@@ -128,7 +128,7 @@ RETURNING id, department_id, oidc_sub, email, role, created_at
 `
 
 func (q *Queries) CreateUser(ctx context.Context, params CreateUserParams) (*StaffUser, error) {
-	return scanUser(q.pool.QueryRow(ctx, createUser,
+	return scanUser(q.db.QueryRow(ctx, createUser,
 		params.DepartmentID, params.OIDCSub, params.Email, params.Role,
 	))
 }
@@ -164,7 +164,7 @@ FROM field_schemas WHERE resource_type = $1
 `
 
 func (q *Queries) GetFieldSchema(ctx context.Context, resourceType string) (*FieldSchema, error) {
-	return scanSchema(q.pool.QueryRow(ctx, getFieldSchema, resourceType))
+	return scanSchema(q.db.QueryRow(ctx, getFieldSchema, resourceType))
 }
 
 const upsertFieldSchema = `
@@ -176,7 +176,7 @@ RETURNING id, resource_type, schema, created_at, updated_at
 `
 
 func (q *Queries) UpsertFieldSchema(ctx context.Context, params UpsertFieldSchemaParams) (*FieldSchema, error) {
-	return scanSchema(q.pool.QueryRow(ctx, upsertFieldSchema, params.ResourceType, params.Schema))
+	return scanSchema(q.db.QueryRow(ctx, upsertFieldSchema, params.ResourceType, params.Schema))
 }
 
 const listFieldSchemas = `
@@ -184,7 +184,7 @@ SELECT id, resource_type, schema, created_at, updated_at FROM field_schemas ORDE
 `
 
 func (q *Queries) ListFieldSchemas(ctx context.Context) ([]*FieldSchema, error) {
-	rows, err := q.pool.Query(ctx, listFieldSchemas)
+	rows, err := q.db.Query(ctx, listFieldSchemas)
 	if err != nil {
 		return nil, err
 	}

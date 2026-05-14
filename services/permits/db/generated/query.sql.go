@@ -20,7 +20,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetPermit(ctx context.Context, id pgtype.UUID) (*Permit, error) {
-	row := q.pool.QueryRow(ctx, getPermit, id)
+	row := q.db.QueryRow(ctx, getPermit, id)
 	return scanPermit(row)
 }
 
@@ -33,7 +33,7 @@ LIMIT $1 OFFSET $2
 `
 
 func (q *Queries) ListPermits(ctx context.Context, limit, offset int32) ([]*Permit, error) {
-	rows, err := q.pool.Query(ctx, listPermits, limit, offset)
+	rows, err := q.db.Query(ctx, listPermits, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ LIMIT $2 OFFSET $3
 `
 
 func (q *Queries) ListPermitsByStatus(ctx context.Context, status string, limit, offset int32) ([]*Permit, error) {
-	rows, err := q.pool.Query(ctx, listPermitsByStatus, status, limit, offset)
+	rows, err := q.db.Query(ctx, listPermitsByStatus, status, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ const countPermits = `SELECT COUNT(*) FROM permits`
 
 func (q *Queries) CountPermits(ctx context.Context) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countPermits).Scan(&n)
+	err := q.db.QueryRow(ctx, countPermits).Scan(&n)
 	return n, err
 }
 
@@ -71,7 +71,7 @@ const countPermitsByStatus = `SELECT COUNT(*) FROM permits WHERE status = $1`
 
 func (q *Queries) CountPermitsByStatus(ctx context.Context, status string) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countPermitsByStatus, status).Scan(&n)
+	err := q.db.QueryRow(ctx, countPermitsByStatus, status).Scan(&n)
 	return n, err
 }
 
@@ -83,7 +83,7 @@ RETURNING id, department_id, permit_type, status, applicant, property_address, m
 `
 
 func (q *Queries) CreatePermit(ctx context.Context, params CreatePermitParams) (*Permit, error) {
-	row := q.pool.QueryRow(ctx, createPermit,
+	row := q.db.QueryRow(ctx, createPermit,
 		params.DepartmentID,
 		params.PermitType,
 		params.Status,
@@ -103,7 +103,7 @@ RETURNING id, department_id, permit_type, status, applicant, property_address, m
 `
 
 func (q *Queries) UpdatePermitStatus(ctx context.Context, params UpdatePermitStatusParams) (*Permit, error) {
-	row := q.pool.QueryRow(ctx, updatePermitStatus, params.ID, params.Status)
+	row := q.db.QueryRow(ctx, updatePermitStatus, params.ID, params.Status)
 	return scanPermit(row)
 }
 
@@ -116,7 +116,7 @@ RETURNING id, department_id, permit_type, status, applicant, property_address, m
 `
 
 func (q *Queries) SetPermitIssuedAt(ctx context.Context, id pgtype.UUID, status string) (*Permit, error) {
-	row := q.pool.QueryRow(ctx, setPermitIssuedAt, id, status)
+	row := q.db.QueryRow(ctx, setPermitIssuedAt, id, status)
 	return scanPermit(row)
 }
 
@@ -127,7 +127,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetInspection(ctx context.Context, id pgtype.UUID) (*Inspection, error) {
-	row := q.pool.QueryRow(ctx, getInspection, id)
+	row := q.db.QueryRow(ctx, getInspection, id)
 	return scanInspection(row)
 }
 
@@ -139,7 +139,7 @@ ORDER BY scheduled_at
 `
 
 func (q *Queries) ListInspectionsByPermit(ctx context.Context, permitID pgtype.UUID) ([]*Inspection, error) {
-	rows, err := q.pool.Query(ctx, listInspectionsByPermit, permitID)
+	rows, err := q.db.Query(ctx, listInspectionsByPermit, permitID)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ RETURNING id, permit_id, inspector_id, scheduled_at, completed_at, result, notes
 `
 
 func (q *Queries) CreateInspection(ctx context.Context, params CreateInspectionParams) (*Inspection, error) {
-	row := q.pool.QueryRow(ctx, createInspection, params.PermitID, params.InspectorID, params.ScheduledAt)
+	row := q.db.QueryRow(ctx, createInspection, params.PermitID, params.InspectorID, params.ScheduledAt)
 	return scanInspection(row)
 }
 
@@ -174,7 +174,7 @@ RETURNING id, permit_id, inspector_id, scheduled_at, completed_at, result, notes
 `
 
 func (q *Queries) UpdateInspection(ctx context.Context, params UpdateInspectionParams) (*Inspection, error) {
-	row := q.pool.QueryRow(ctx, updateInspection,
+	row := q.db.QueryRow(ctx, updateInspection,
 		params.ID, params.CompletedAt, params.Result, params.Notes,
 	)
 	return scanInspection(row)

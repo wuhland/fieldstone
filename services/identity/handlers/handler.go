@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -8,25 +9,28 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 )
 
-// Publisher publishes domain events after a successful write.
+// Publisher writes events to the outbox table within a transaction.
 type Publisher interface {
-	Publish(subject, sourceService, eventType string, payload any)
+	PublishTx(ctx context.Context, tx pgx.Tx, subject, sourceService, eventType string, payload any) error
 }
 
 // Handler holds injected dependencies for all identity endpoints.
 type Handler struct {
+	pool    *pgxpool.Pool
 	queries *identitydb.Queries
 	pub     Publisher
 }
 
-func New(q *identitydb.Queries, pub Publisher) *Handler {
-	return &Handler{queries: q, pub: pub}
+func New(pool *pgxpool.Pool, q *identitydb.Queries, pub Publisher) *Handler {
+	return &Handler{pool: pool, queries: q, pub: pub}
 }
 
 // ─── Response types ───────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetServiceRequest(ctx context.Context, id pgtype.UUID) (*ServiceRequest, error) {
-	row := q.pool.QueryRow(ctx, getServiceRequest, id)
+	row := q.db.QueryRow(ctx, getServiceRequest, id)
 	return scanServiceRequest(row)
 }
 
@@ -33,7 +33,7 @@ LIMIT $1 OFFSET $2
 `
 
 func (q *Queries) ListServiceRequests(ctx context.Context, limit, offset int32) ([]*ServiceRequest, error) {
-	rows, err := q.pool.Query(ctx, listServiceRequests, limit, offset)
+	rows, err := q.db.Query(ctx, listServiceRequests, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ LIMIT $2 OFFSET $3
 `
 
 func (q *Queries) ListServiceRequestsByStatus(ctx context.Context, status string, limit, offset int32) ([]*ServiceRequest, error) {
-	rows, err := q.pool.Query(ctx, listServiceRequestsByStatus, status, limit, offset)
+	rows, err := q.db.Query(ctx, listServiceRequestsByStatus, status, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ const countServiceRequests = `SELECT COUNT(*) FROM service_requests`
 
 func (q *Queries) CountServiceRequests(ctx context.Context) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countServiceRequests).Scan(&n)
+	err := q.db.QueryRow(ctx, countServiceRequests).Scan(&n)
 	return n, err
 }
 
@@ -71,7 +71,7 @@ const countServiceRequestsByStatus = `SELECT COUNT(*) FROM service_requests WHER
 
 func (q *Queries) CountServiceRequestsByStatus(ctx context.Context, status string) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countServiceRequestsByStatus, status).Scan(&n)
+	err := q.db.QueryRow(ctx, countServiceRequestsByStatus, status).Scan(&n)
 	return n, err
 }
 
@@ -84,7 +84,7 @@ RETURNING id, department_id, request_type, status, description, location,
 `
 
 func (q *Queries) CreateServiceRequest(ctx context.Context, params CreateServiceRequestParams) (*ServiceRequest, error) {
-	row := q.pool.QueryRow(ctx, createServiceRequest,
+	row := q.db.QueryRow(ctx, createServiceRequest,
 		params.DepartmentID,
 		params.RequestType,
 		params.Status,
@@ -105,7 +105,7 @@ RETURNING id, department_id, request_type, status, description, location,
 `
 
 func (q *Queries) UpdateServiceRequestStatus(ctx context.Context, params UpdateServiceRequestStatusParams) (*ServiceRequest, error) {
-	row := q.pool.QueryRow(ctx, updateServiceRequestStatus, params.ID, params.Status)
+	row := q.db.QueryRow(ctx, updateServiceRequestStatus, params.ID, params.Status)
 	return scanServiceRequest(row)
 }
 
@@ -118,7 +118,7 @@ RETURNING id, department_id, request_type, status, description, location,
 `
 
 func (q *Queries) CloseServiceRequest(ctx context.Context, id pgtype.UUID, status string) (*ServiceRequest, error) {
-	row := q.pool.QueryRow(ctx, closeServiceRequest, id, status)
+	row := q.db.QueryRow(ctx, closeServiceRequest, id, status)
 	return scanServiceRequest(row)
 }
 
@@ -131,7 +131,7 @@ RETURNING id, department_id, request_type, status, description, location,
 `
 
 func (q *Queries) AssignServiceRequest(ctx context.Context, params AssignServiceRequestParams) (*ServiceRequest, error) {
-	row := q.pool.QueryRow(ctx, assignServiceRequest, params.ID, params.AssignedTo, params.Status)
+	row := q.db.QueryRow(ctx, assignServiceRequest, params.ID, params.AssignedTo, params.Status)
 	return scanServiceRequest(row)
 }
 

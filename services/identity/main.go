@@ -18,6 +18,7 @@ import (
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
+	"github.com/fieldstone/fieldstone/internal/outbox"
 	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 	"github.com/fieldstone/fieldstone/services/identity/handlers"
 )
@@ -37,7 +38,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseDSN)
 	if err != nil {
@@ -58,8 +60,9 @@ func main() {
 	}
 	defer nc.Drain()
 
-	pub := newPublisher(js)
-	h := handlers.New(identitydb.New(pool), pub)
+	pub := &outbox.Publisher{}
+	go outbox.Run(ctx, pool, js)
+	h := handlers.New(pool, identitydb.New(pool), pub)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -102,6 +105,7 @@ func main() {
 	}()
 
 	<-sigCh
+	cancel() // stop outbox poller and other background goroutines
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

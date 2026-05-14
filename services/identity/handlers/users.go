@@ -98,7 +98,15 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.queries.CreateUser(r.Context(), identitydb.CreateUserParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create user")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	user, err := h.queries.WithTx(tx).CreateUser(r.Context(), identitydb.CreateUserParams{
 		DepartmentID: deptID,
 		OIDCSub:      req.OIDCSub,
 		Email:        req.Email,
@@ -115,7 +123,16 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := userToResponse(user)
-	h.pub.Publish(events.SubjectUserProvisioned, "identity", events.SubjectUserProvisioned, resp)
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectUserProvisioned, "identity", events.SubjectUserProvisioned, resp); err != nil {
+		slog.Error("write user.provisioned to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create user")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit user create", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create user")
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, resp)
 }

@@ -113,7 +113,15 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	f, err := h.queries.CreateFOIARequest(r.Context(), recordsdb.CreateFOIARequestParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	f, err := h.queries.WithTx(tx).CreateFOIARequest(r.Context(), recordsdb.CreateFOIARequestParams{
 		DepartmentID:   deptID,
 		Status:         initialStatus,
 		RequesterName:  req.RequesterName,
@@ -129,7 +137,16 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := foiaToResponse(f)
-	h.pub.Publish(events.SubjectFOIARequestCreated, "records", events.SubjectFOIARequestCreated, resp)
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectFOIARequestCreated, "records", events.SubjectFOIARequestCreated, resp); err != nil {
+		slog.Error("write foia_request.created to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit FOIA create", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create request")
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, resp)
 }
@@ -204,11 +221,19 @@ func (h *Handler) UpdateFOIAStatus(w http.ResponseWriter, r *http.Request) {
 
 	oldStatus := f.Status
 
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	var updated *recordsdb.FOIARequest
 	if terminalStatuses[req.Status] {
-		updated, err = h.queries.CloseFOIARequest(r.Context(), id, req.Status)
+		updated, err = h.queries.WithTx(tx).CloseFOIARequest(r.Context(), id, req.Status)
 	} else {
-		updated, err = h.queries.UpdateFOIAStatus(r.Context(), recordsdb.UpdateFOIAStatusParams{
+		updated, err = h.queries.WithTx(tx).UpdateFOIAStatus(r.Context(), recordsdb.UpdateFOIAStatusParams{
 			ID:     id,
 			Status: req.Status,
 		})
@@ -220,12 +245,17 @@ func (h *Handler) UpdateFOIAStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := foiaToResponse(updated)
-	h.pub.Publish(
-		events.SubjectFOIARequestStatusChanged,
-		"records",
-		events.SubjectFOIARequestStatusChanged,
-		map[string]any{"request": resp, "from": oldStatus, "to": req.Status},
-	)
+	payload := map[string]any{"request": resp, "from": oldStatus, "to": req.Status}
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectFOIARequestStatusChanged, "records", events.SubjectFOIARequestStatusChanged, payload); err != nil {
+		slog.Error("write foia_request.status_changed to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit FOIA status update", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update status")
+		return
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }

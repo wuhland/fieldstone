@@ -4,12 +4,31 @@
 
 package requestsdb
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	fieldstonedb "github.com/fieldstone/fieldstone/internal/db"
+)
+
+// DBTX is re-exported for convenience so callers don't need to import internal/db.
+type DBTX = fieldstonedb.DBTX
 
 type Queries struct {
-	pool *pgxpool.Pool
+	db DBTX
 }
 
-func New(pool *pgxpool.Pool) *Queries {
-	return &Queries{pool: pool}
+// New accepts either *pgxpool.Pool or pgx.Tx.
+func New(db DBTX) *Queries {
+	return &Queries{db: db}
+}
+
+// WithTx returns a new Queries that executes within the given transaction.
+func (q *Queries) WithTx(tx pgx.Tx) *Queries {
+	return &Queries{db: tx}
+}
+
+// Pool is a convenience constructor for the common case of a *pgxpool.Pool.
+func Pool(pool *pgxpool.Pool) *Queries {
+	return &Queries{db: pool}
 }

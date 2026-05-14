@@ -20,7 +20,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetFOIARequest(ctx context.Context, id pgtype.UUID) (*FOIARequest, error) {
-	row := q.pool.QueryRow(ctx, getFOIARequest, id)
+	row := q.db.QueryRow(ctx, getFOIARequest, id)
 	return scanFOIA(row)
 }
 
@@ -33,7 +33,7 @@ LIMIT $1 OFFSET $2
 `
 
 func (q *Queries) ListFOIARequests(ctx context.Context, limit, offset int32) ([]*FOIARequest, error) {
-	rows, err := q.pool.Query(ctx, listFOIARequests, limit, offset)
+	rows, err := q.db.Query(ctx, listFOIARequests, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ LIMIT $2 OFFSET $3
 `
 
 func (q *Queries) ListFOIARequestsByStatus(ctx context.Context, status string, limit, offset int32) ([]*FOIARequest, error) {
-	rows, err := q.pool.Query(ctx, listFOIARequestsByStatus, status, limit, offset)
+	rows, err := q.db.Query(ctx, listFOIARequestsByStatus, status, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ const countFOIARequests = `SELECT COUNT(*) FROM foia_requests`
 
 func (q *Queries) CountFOIARequests(ctx context.Context) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countFOIARequests).Scan(&n)
+	err := q.db.QueryRow(ctx, countFOIARequests).Scan(&n)
 	return n, err
 }
 
@@ -71,7 +71,7 @@ const countFOIARequestsByStatus = `SELECT COUNT(*) FROM foia_requests WHERE stat
 
 func (q *Queries) CountFOIARequestsByStatus(ctx context.Context, status string) (int64, error) {
 	var n int64
-	err := q.pool.QueryRow(ctx, countFOIARequestsByStatus, status).Scan(&n)
+	err := q.db.QueryRow(ctx, countFOIARequestsByStatus, status).Scan(&n)
 	return n, err
 }
 
@@ -84,7 +84,7 @@ RETURNING id, department_id, status, requester_name, requester_email, descriptio
 `
 
 func (q *Queries) CreateFOIARequest(ctx context.Context, params CreateFOIARequestParams) (*FOIARequest, error) {
-	row := q.pool.QueryRow(ctx, createFOIARequest,
+	row := q.db.QueryRow(ctx, createFOIARequest,
 		params.DepartmentID,
 		params.Status,
 		params.RequesterName,
@@ -105,7 +105,7 @@ RETURNING id, department_id, status, requester_name, requester_email, descriptio
 `
 
 func (q *Queries) UpdateFOIAStatus(ctx context.Context, params UpdateFOIAStatusParams) (*FOIARequest, error) {
-	row := q.pool.QueryRow(ctx, updateFOIAStatus, params.ID, params.Status)
+	row := q.db.QueryRow(ctx, updateFOIAStatus, params.ID, params.Status)
 	return scanFOIA(row)
 }
 
@@ -118,7 +118,7 @@ RETURNING id, department_id, status, requester_name, requester_email, descriptio
 `
 
 func (q *Queries) CloseFOIARequest(ctx context.Context, id pgtype.UUID, status string) (*FOIARequest, error) {
-	row := q.pool.QueryRow(ctx, closeFOIARequest, id, status)
+	row := q.db.QueryRow(ctx, closeFOIARequest, id, status)
 	return scanFOIA(row)
 }
 

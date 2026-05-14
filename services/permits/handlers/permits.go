@@ -101,7 +101,15 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	permit, err := h.queries.CreatePermit(r.Context(), permitsdb.CreatePermitParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create permit")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	permit, err := h.queries.WithTx(tx).CreatePermit(r.Context(), permitsdb.CreatePermitParams{
 		DepartmentID:    deptID,
 		PermitType:      req.PermitType,
 		Status:          initialStatus,
@@ -116,7 +124,16 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := permitToResponse(permit)
-	h.pub.Publish(events.SubjectPermitCreated, "permits", events.SubjectPermitCreated, resp)
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectPermitCreated, "permits", events.SubjectPermitCreated, resp); err != nil {
+		slog.Error("write permit.created to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create permit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit permit create", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to create permit")
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, resp)
 }
@@ -208,11 +225,19 @@ func (h *Handler) UpdatePermitStatus(w http.ResponseWriter, r *http.Request) {
 	oldStatus := permit.Status
 
 	// For the "approved" status, also set issued_at
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("begin transaction", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update permit status")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	var updated *permitsdb.Permit
 	if req.Status == "approved" {
-		updated, err = h.queries.SetPermitIssuedAt(r.Context(), id, req.Status)
+		updated, err = h.queries.WithTx(tx).SetPermitIssuedAt(r.Context(), id, req.Status)
 	} else {
-		updated, err = h.queries.UpdatePermitStatus(r.Context(), permitsdb.UpdatePermitStatusParams{
+		updated, err = h.queries.WithTx(tx).UpdatePermitStatus(r.Context(), permitsdb.UpdatePermitStatusParams{
 			ID:     id,
 			Status: req.Status,
 		})
@@ -224,12 +249,17 @@ func (h *Handler) UpdatePermitStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := permitToResponse(updated)
-	h.pub.Publish(
-		events.SubjectPermitStatusChanged,
-		"permits",
-		events.SubjectPermitStatusChanged,
-		map[string]any{"permit": resp, "from": oldStatus, "to": req.Status},
-	)
+	payload := map[string]any{"permit": resp, "from": oldStatus, "to": req.Status}
+	if err := h.pub.PublishTx(r.Context(), tx, events.SubjectPermitStatusChanged, "permits", events.SubjectPermitStatusChanged, payload); err != nil {
+		slog.Error("write permit.status_changed to outbox", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update permit status")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("commit permit status update", "error", err)
+		writeError(w, r, http.StatusInternalServerError, "failed to update permit status")
+		return
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
