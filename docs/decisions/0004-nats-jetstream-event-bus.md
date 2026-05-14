@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — stream retention corrected from WorkQueuePolicy to InterestPolicy
 
 ## Context and Problem Statement
 
@@ -41,7 +41,15 @@ The `FIELDSTONE` JetStream stream covers `fieldstone.>`. Services publish via a 
 
 * NATS JetStream has lower throughput than Kafka at very high message rates — not a concern at civic services scale but worth noting.
 * The ecosystem of connectors and monitoring tools is smaller than Kafka's.
-* WorkQueuePolicy (specified for the FIELDSTONE stream) delivers each message to exactly one consumer across all subscribers with the same durable name — operators must understand that audit and webhooks need distinct durable consumer names.
+* ~~WorkQueuePolicy~~ **Corrected to InterestPolicy** — see note below.
+
+## Correction: WorkQueuePolicy → InterestPolicy
+
+The initial scaffold configured the `FIELDSTONE` stream with `WorkQueuePolicy`. This was a bug: WorkQueuePolicy delivers each message to **exactly one** consumer across all subscribers, meaning the audit service and the webhooks service would race — each receiving approximately half of all events, and the audit log would silently be missing events.
+
+`InterestPolicy` is the correct choice for this fan-out pattern. It retains each message until **every durable consumer** has acknowledged it, so audit, webhooks, and any extension services each independently receive the full event stream.
+
+The correction is applied in `internal/nats/connect.go`, which also upgrades existing streams on connect so previously deployed instances self-correct on restart.
 
 ## Pros and Cons of the Options
 

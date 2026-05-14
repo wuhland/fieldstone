@@ -10,7 +10,7 @@ written in [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records) f
 | [0001](0001-single-go-module.md) | Single Go module for all services | Accepted |
 | [0002](0002-single-tenant-deployment.md) | Single-tenant deployment model | Accepted |
 | [0003](0003-shared-postgres-schema-isolation.md) | Shared PostgreSQL instance with per-service schema isolation | Accepted |
-| [0004](0004-nats-jetstream-event-bus.md) | NATS JetStream as the async event bus | Accepted |
+| [0004](0004-nats-jetstream-event-bus.md) | NATS JetStream as the async event bus | Accepted — stream retention corrected to InterestPolicy |
 | [0005](0005-http-not-grpc-inter-service.md) | HTTP for inter-service communication, not gRPC | Accepted |
 | [0006](0006-sqlc-not-orm.md) | sqlc for type-safe queries, no ORM | Accepted |
 | [0007](0007-yaml-driven-workflow-engine.md) | Configurable workflow engine via YAML, not hardcoded transitions | Accepted |
@@ -21,6 +21,9 @@ written in [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records) f
 | [0012](0012-buffered-channel-event-publishing.md) | Buffered channel for decoupled NATS event publishing | Accepted |
 | [0013](0013-oidc-jwt-staff-authentication.md) | OIDC with JWT validation for staff authentication | Accepted |
 | [0014](0014-nextjs-app-router-frontend.md) | Next.js 15 App Router for the frontend | Accepted |
+| [0015](0015-pgbouncer-connection-pooling.md) | PgBouncer for PostgreSQL connection pooling | Accepted |
+| [0016](0016-prometheus-grafana-observability.md) | Prometheus + Grafana for observability | Accepted |
+| [0017](0017-raw-resp-redis-rate-limiter.md) | Zero-dependency Redis client for distributed rate limiting | Accepted |
 
 ## Format
 
