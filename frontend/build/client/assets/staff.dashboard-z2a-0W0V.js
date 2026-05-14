@@ -1,1 +1,0 @@
-import{w as a,o as t}from"./chunk-5KNZJZUH-DU3gRWdF.js";const o=()=>[{title:"Dashboard | Fieldstone Staff"}],r=a(function(){return t.jsxs("div",{children:[t.jsx("h1",{className:"text-2xl font-bold text-gray-900",children:"Dashboard"}),t.jsx("p",{className:"mt-2 text-gray-500",children:"Welcome to the staff portal."})]})});export{r as default,o as meta};

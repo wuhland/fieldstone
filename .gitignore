@@ -4,11 +4,22 @@
 # Go build output
 /bin/
 *.test
+/gateway
+/identity
+/permits
+/requests
+/records
+/workflow
+/webhooks
+/audit
+/notify
 
 # Frontend
 frontend/node_modules/
 frontend/.next/
 frontend/.react-router/
+frontend/build/
+frontend/tsconfig.tsbuildinfo
 
 # OS
 .DS_Store
