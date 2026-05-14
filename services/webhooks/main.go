@@ -17,6 +17,7 @@ import (
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
 	"github.com/fieldstone/fieldstone/services/webhooks/handlers"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const version = "0.1.0"
@@ -62,7 +63,9 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
+	r.Use(middleware.Metrics("webhooks"))
 
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{

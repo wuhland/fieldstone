@@ -75,3 +75,15 @@ services:
       LOG_LEVEL: debug
     ports:
       - "8088:8088"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  grafana:
+    ports:
+      - "3001:3000"  # 3001 to avoid collision with the frontend on 3000

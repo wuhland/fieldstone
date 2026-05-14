@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/middleware"
@@ -67,7 +68,9 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
+	r.Use(middleware.Metrics("records"))
 
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{

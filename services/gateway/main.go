@@ -14,6 +14,7 @@ import (
 	"github.com/fieldstone/fieldstone/internal/auth"
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const version = "0.1.0"
@@ -54,14 +55,16 @@ func main() {
 		})
 	}
 
-	rl := newRateLimiter(100, time.Minute) // 100 req/min per IP on public routes
+	rl := newRateLimiter(cfg.RedisURL, cfg.RateLimitPerMin, time.Minute)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
+	r.Use(middleware.Metrics("gateway"))
 
 	// Health — public, no auth
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
@@ -75,7 +78,7 @@ func main() {
 	// POST /v1/requests — public so citizens can submit service requests
 	// GET /v1/permits/:id/status — public permit status lookup
 	r.Group(func(r chi.Router) {
-		r.Use(rl.Middleware)
+		r.Use(rateLimitMiddleware(rl, cfg.RateLimitPerMin))
 		r.Post("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
 		r.Get("/v1/permits/{id}/status", newProxy(cfg.PermitsServiceURL).ServeHTTP)
 		r.Post("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)

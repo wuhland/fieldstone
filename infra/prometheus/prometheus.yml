@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: fieldstone-gateway
+    static_configs:
+      - targets: ["gateway:8080"]
+
+  - job_name: fieldstone-identity
+    static_configs:
+      - targets: ["identity:8084"]
+
+  - job_name: fieldstone-permits
+    static_configs:
+      - targets: ["permits:8081"]
+
+  - job_name: fieldstone-requests
+    static_configs:
+      - targets: ["requests:8082"]
+
+  - job_name: fieldstone-records
+    static_configs:
+      - targets: ["records:8083"]
+
+  - job_name: fieldstone-workflow
+    static_configs:
+      - targets: ["workflow:8085"]
+
+  - job_name: fieldstone-webhooks
+    static_configs:
+      - targets: ["webhooks:8086"]
+
+  - job_name: fieldstone-audit
+    static_configs:
+      - targets: ["audit:8087"]
+
+  - job_name: fieldstone-notify
+    static_configs:
+      - targets: ["notify:8088"]

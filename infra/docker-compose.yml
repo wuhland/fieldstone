@@ -62,6 +62,8 @@ services:
     depends_on:
       nats:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -176,8 +178,50 @@ services:
     restart: unless-stopped
     profiles: ["core"]
 
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD", "redis-cli", "ping"]
+    restart: unless-stopped
+    profiles: ["core"]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    profiles: ["observability"]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-fieldstone}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    profiles: ["observability"]
+
 volumes:
   postgres_data:
   nats_data:
   caddy_data:
   caddy_config:
+  redis_data:
+  prometheus_data:
+  grafana_data:

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
@@ -54,10 +55,12 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
+	r.Use(middleware.Metrics("audit"))
 
 	r.Get("/v1/audit", handlers.ListEvents)
 	r.Get("/v1/audit/{id}", handlers.GetEvent)
 
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", healthHandler("audit"))
 
 	srv := &http.Server{Addr: cfg.Addr, Handler: r, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second}

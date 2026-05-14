@@ -15,6 +15,7 @@ import (
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -59,7 +60,9 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
+	r.Use(middleware.Metrics("notify"))
 
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{

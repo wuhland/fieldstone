@@ -1,0 +1,69 @@
+{
+  "title": "Fieldstone Overview",
+  "uid": "fieldstone-overview",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(fieldstone_http_requests_total[1m]))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(fieldstone_http_requests_total{status=~\"5..\"}[1m])) / sum by (service) (rate(fieldstone_http_requests_total[1m])) * 100",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p99 Latency (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (service, le) (rate(fieldstone_http_request_duration_seconds_bucket[1m])))",
+          "legendFormat": "{{service}} p99"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "p50 Latency (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (service, le) (rate(fieldstone_http_request_duration_seconds_bucket[1m])))",
+          "legendFormat": "{{service}} p50"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HTTP Status Breakdown",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (service, status) (rate(fieldstone_http_requests_total[1m]))",
+          "legendFormat": "{{service}} {{status}}"
+        }
+      ]
+    }
+  ]
+}
