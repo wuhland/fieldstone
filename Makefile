@@ -1,4 +1,4 @@
-.PHONY: dev test test-integration test-race generate lint build migrate-up fmt vet swagger install-tools
+.PHONY: dev down test test-integration test-race generate lint build migrate-up fmt vet swagger install-tools
 
 dev:
 	docker compose --env-file .env \
@@ -7,6 +7,11 @@ dev:
 
 # Rebuild and restart a single service without touching the rest.
 # Usage: make rebuild SERVICE=gateway
+down:
+	docker compose --env-file .env \
+		-f infra/docker-compose.yml -f infra/docker-compose.dev.yml \
+		--profile core --profile permits down
+
 rebuild:
 	@if [ -z "$(SERVICE)" ]; then echo "Usage: SERVICE=gateway make rebuild"; exit 1; fi
 	docker compose --env-file .env \
