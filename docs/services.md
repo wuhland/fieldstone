@@ -91,20 +91,60 @@ Default resource types: `permit`, `service_request`, `foia_request`
 
 ## webhooks (port 8086)
 
-HTTP webhook delivery. Subscribes to NATS, fans out to registered endpoints with
-HMAC-SHA256 signatures and exponential backoff retry.
+HTTP webhook delivery service. Subscribes to every `fieldstone.>` NATS event and
+fans out to registered endpoints whose event patterns match the incoming subject.
 
-- `GET/POST /v1/webhooks` — list / register webhook
-- `GET/DELETE /v1/webhooks/{id}` — get details + delivery log / remove
-- `POST /v1/webhooks/{id}/test` — send a test payload
+**Dispatch behaviour**
+- The NATS message is acked immediately; delivery happens in a goroutine so a slow
+  or retrying endpoint never blocks event processing.
+- Up to 5 retries with exponential backoff (1 s, 2 s, 4 s, 8 s, 16 s) on non-2xx.
+- Every POST carries `X-Fieldstone-Signature: sha256=<hmac>` and `X-Fieldstone-Event`.
+- Each delivery attempt is recorded in `webhooks.deliveries` (status code, duration,
+  error). `GET /v1/webhooks/{id}` returns the last 100 delivery records.
+- `fail_count` is incremented on failure and reset to 0 on success. An endpoint
+  is automatically disabled and logged at WARN when `fail_count` reaches 10.
+
+**Event pattern matching**
+Patterns support NATS-style wildcards:
+- `*` matches exactly one subject token: `fieldstone.permits.permit.*` matches
+  `fieldstone.permits.permit.created` but not `fieldstone.permits.permit.created.sub`
+- `>` matches all remaining tokens: `fieldstone.permits.>` matches everything under
+  `fieldstone.permits.`
+
+**Routes**
+- `GET /v1/webhooks` — list registered endpoints (secret never returned after creation)
+- `POST /v1/webhooks` — register `{url, secret, events[], description?}`; secret
+  shown once in the 201 response
+- `GET /v1/webhooks/{id}` — endpoint detail + last 100 delivery records
+- `DELETE /v1/webhooks/{id}` — remove endpoint and its delivery history; 204
+- `POST /v1/webhooks/{id}/test` — dispatch a synthetic `fieldstone.webhooks.test`
+  event synchronously and return the event ID
+
+**Secret storage note**: the signing secret is currently stored as plaintext in the
+database for HMAC computation (bcrypt is one-way and cannot be used for signing).
+The production upgrade path is AES-256-GCM encryption at rest; see ADR-0020.
 
 ## audit (port 8087)
 
-Subscribes to all NATS events (`fieldstone.>`) and persists them. The `audit.events`
-table is range-partitioned by `occurred_at` (monthly partitions, 2025–2030).
+Immutable audit log. Subscribes to every `fieldstone.>` NATS event (durable consumer
+`audit-service`) and persists each one to `audit.events`. The table is range-partitioned
+by `occurred_at` with monthly partitions (2025–2030).
 
-- `GET /v1/audit` — paginated events; filter with `?event_type=`, `?source_service=`
-- `GET /v1/audit/{id}` — single event
+**Persistence guarantees**
+- Nak on decode or DB error causes JetStream to redeliver — at-least-once persistence.
+- `INSERT ... ON CONFLICT (id, occurred_at) DO NOTHING` makes re-delivery idempotent.
+- Combined with the transactional outbox in domain services (ADR-0018), the audit log
+  contains a record of every business action even if a service crashed immediately
+  after its DB commit.
+
+**Routes**
+- `GET /v1/audit` — paginated event list; all filters are optional and combinable:
+  - `?event_type=fieldstone.permits.permit.created`
+  - `?source_service=permits`
+  - `?from=2026-05-01T00:00:00Z` (RFC3339)
+  - `?to=2026-05-31T23:59:59Z` (RFC3339)
+  - `?limit=50&offset=0`
+- `GET /v1/audit/{id}` — single event by UUID (scans all partitions)
 
 ## notify (port 8088)
 

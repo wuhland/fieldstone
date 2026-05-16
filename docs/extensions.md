@@ -125,7 +125,8 @@ They are not registered anywhere — the event bus is fire-and-forget broadcast.
 
 ## Layer 4: Webhooks
 
-For external systems that can't run a NATS consumer, Fieldstone delivers events via HTTP.
+For external systems that can't run a NATS consumer (legacy vendor APIs, no-code
+platforms, Zapier), Fieldstone delivers events via HTTP POST.
 
 ### Registering a webhook
 
@@ -136,34 +137,94 @@ curl -X POST https://your-city.gov/v1/webhooks \
   -d '{
     "url": "https://gis.city.gov/fieldstone-events",
     "secret": "whsec_your-random-secret-here",
-    "events": ["fieldstone.permits.permit.*"],
-    "description": "Sync new permits to GIS system"
+    "events": ["fieldstone.permits.permit.*", "fieldstone.requests.>"],
+    "description": "Sync permits and requests to GIS system"
   }'
 ```
 
+The `secret` is shown once in the response and never returned again. Store it
+securely — you will need it to verify delivery signatures.
+
+### Event pattern syntax
+
+The `events` array uses NATS-style subject patterns:
+
+| Pattern | Matches | Does not match |
+|---------|---------|----------------|
+| `fieldstone.permits.permit.created` | Exact subject only | Anything else |
+| `fieldstone.permits.permit.*` | `permit.created`, `permit.status_changed` | `permit.created.sub` |
+| `fieldstone.permits.>` | Everything under `fieldstone.permits.` | `fieldstone.requests.*` |
+| `fieldstone.>` | Every fieldstone event | — |
+
+Register multiple patterns to subscribe to events from multiple services:
+```json
+"events": ["fieldstone.permits.permit.*", "fieldstone.requests.service_request.created"]
+```
+
+### Delivery headers
+
+Every POST includes:
+
+```
+Content-Type: application/json
+X-Fieldstone-Signature: sha256=<hmac-sha256>
+X-Fieldstone-Event: fieldstone.permits.permit.created
+```
+
+The body is the full `EventEnvelope` JSON document.
+
 ### Verifying webhook signatures
 
-Every delivery includes `X-Fieldstone-Signature: sha256=<hmac>` computed as:
-
 ```
-HMAC-SHA256(secret, request_body)
+X-Fieldstone-Signature: sha256=HMAC-SHA256(secret, raw_request_body)
 ```
 
-Verification example (Python):
+Verification examples:
+
 ```python
 import hmac, hashlib
 
 def verify(secret: str, body: bytes, signature: str) -> bool:
-    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(f"sha256={expected}", signature)
+    expected = "sha256=" + hmac.new(
+        secret.encode(), body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
 ```
 
-### Retry behavior
+```go
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+)
 
-- Up to 5 retries with exponential backoff: 1s, 2s, 4s, 8s, 16s
-- Non-2xx responses are retried
-- 10 consecutive failures auto-disables the endpoint (logged at WARN)
-- Delivery history available at `GET /v1/webhooks/:id`
+func verify(secret, body []byte, signature string) bool {
+    mac := hmac.New(sha256.New, secret)
+    mac.Write(body)
+    expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+    return hmac.Equal([]byte(expected), []byte(signature))
+}
+```
+
+### Retry and reliability behaviour
+
+- The NATS message is acked immediately; delivery is non-blocking.
+- Up to 5 retries with exponential backoff: 1 s, 2 s, 4 s, 8 s, 16 s.
+- Non-2xx responses and connection errors both trigger a retry.
+- Every delivery attempt is recorded (status code, latency, error). View the last 100:
+  `GET /v1/webhooks/{id}`
+- An endpoint is **automatically disabled** after 10 consecutive delivery failures
+  (logged at WARN). Re-enable it by deleting and recreating the registration.
+- A 2xx response resets the consecutive failure counter.
+
+### Testing your endpoint
+
+```bash
+curl -s -X POST https://your-city.gov/v1/webhooks/{id}/test | jq
+```
+
+Sends a synthetic `fieldstone.webhooks.test` event synchronously and returns the
+event ID. Check the delivery log to confirm receipt.
 
 ## Contract for extension services
 

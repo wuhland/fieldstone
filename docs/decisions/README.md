@@ -18,12 +18,15 @@ written in [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records) f
 | [0009](0009-extension-via-nats-not-plugins.md) | Extension services via NATS subscription, not a plugin system | Accepted |
 | [0010](0010-docker-compose-not-kubernetes.md) | Docker Compose for deployment, not Kubernetes | Accepted |
 | [0011](0011-caddy-reverse-proxy.md) | Caddy as the reverse proxy and TLS terminator | Accepted |
-| [0012](0012-buffered-channel-event-publishing.md) | Buffered channel for decoupled NATS event publishing | Accepted |
+| [0012](0012-buffered-channel-event-publishing.md) | Buffered channel for decoupled NATS event publishing | Superseded by 0018 |
 | [0013](0013-oidc-jwt-staff-authentication.md) | OIDC with JWT validation for staff authentication | Accepted |
 | [0014](0014-nextjs-app-router-frontend.md) | Next.js 15 App Router for the frontend | Accepted |
 | [0015](0015-pgbouncer-connection-pooling.md) | PgBouncer for PostgreSQL connection pooling | Accepted |
 | [0016](0016-prometheus-grafana-observability.md) | Prometheus + Grafana for observability | Accepted |
 | [0017](0017-raw-resp-redis-rate-limiter.md) | Zero-dependency Redis client for distributed rate limiting | Accepted |
+| [0018](0018-transactional-outbox.md) | Transactional outbox for durable event publishing | Accepted — supersedes 0012 |
+| [0019](0019-dynamic-parameterized-queries.md) | Dynamic parameterized queries for optional filters | Accepted |
+| [0020](0020-webhook-secret-plaintext-storage.md) | Webhook secret stored as plaintext for HMAC signing | Accepted — documented spec deviation |
 
 ## Format
 

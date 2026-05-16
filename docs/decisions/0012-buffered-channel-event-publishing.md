@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0018](0018-transactional-outbox.md)
+
+The buffered channel was replaced by the transactional outbox pattern after it was identified as a correctness problem: events in the channel are lost on process crash, meaning the audit log could silently have gaps. The outbox writes the event row to the database in the same transaction as the business record, guaranteeing at-least-once delivery even across restarts.
+
+The original rationale and analysis below is preserved for context.
 
 ## Context and Problem Statement
 
