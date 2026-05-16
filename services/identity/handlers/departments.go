@@ -9,6 +9,14 @@ import (
 	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 )
 
+// ListDepartments godoc
+// @Summary      List departments
+// @Tags         identity
+// @Produce      json
+// @Success      200  {object}  map[string][]DepartmentResponse
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/departments [get]
 func (h *Handler) ListDepartments(w http.ResponseWriter, r *http.Request) {
 	depts, err := h.queries.ListDepartments(r.Context())
 	if err != nil {
@@ -30,6 +38,18 @@ type createDepartmentInput struct {
 	Config json.RawMessage `json:"config"`
 }
 
+// CreateDepartment godoc
+// @Summary      Create a department
+// @Tags         identity
+// @Accept       json
+// @Produce      json
+// @Param        body  body  createDepartmentInput  true  "Department"
+// @Success      201  {object}  DepartmentResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      409  {object}  map[string]string  "Slug already exists"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/departments [post]
 func (h *Handler) CreateDepartment(w http.ResponseWriter, r *http.Request) {
 	var req createDepartmentInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

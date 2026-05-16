@@ -1,0 +1,1683 @@
+basePath: /
+definitions:
+  github_com_fieldstone_fieldstone_services_audit_handlers.listResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/handlers.EventResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_fieldstone_fieldstone_services_permits_handlers.listResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      permits:
+        items:
+          $ref: '#/definitions/handlers.PermitResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_fieldstone_fieldstone_services_permits_handlers.updateStatusRequest:
+    properties:
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_fieldstone_fieldstone_services_records_handlers.listResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/handlers.FOIARequestResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_fieldstone_fieldstone_services_requests_handlers.listResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      requests:
+        items:
+          $ref: '#/definitions/handlers.ServiceRequestResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_fieldstone_fieldstone_services_requests_handlers.updateStatusRequest:
+    properties:
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  handlers.DeliveryResponse:
+    properties:
+      delivered_at:
+        type: string
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      event_id:
+        type: string
+      event_type:
+        type: string
+      id:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  handlers.DepartmentResponse:
+    properties:
+      config:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  handlers.EndpointCreatedResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      fail_count:
+        type: integer
+      id:
+        type: string
+      secret:
+        description: shown only at creation time
+        type: string
+      url:
+        type: string
+    type: object
+  handlers.EndpointDetailResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      fail_count:
+        type: integer
+      id:
+        type: string
+      recent_deliveries:
+        items:
+          $ref: '#/definitions/handlers.DeliveryResponse'
+        type: array
+      url:
+        type: string
+    type: object
+  handlers.EndpointResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      fail_count:
+        type: integer
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  handlers.EventResponse:
+    properties:
+      actor:
+        items:
+          type: integer
+        type: array
+      event_type:
+        type: string
+      id:
+        type: string
+      indexed_at:
+        type: string
+      occurred_at:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      source_service:
+        type: string
+    type: object
+  handlers.FOIARequestResponse:
+    properties:
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      department_id:
+        type: string
+      description:
+        type: string
+      due_date:
+        description: '"2006-01-02" or null'
+        type: string
+      id:
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      requester_email:
+        type: string
+      requester_name:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.FieldSchemaResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      resource_type:
+        type: string
+      schema:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+    type: object
+  handlers.InspectionResponse:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      inspector_id:
+        type: string
+      notes:
+        type: string
+      permit_id:
+        type: string
+      result:
+        type: string
+      scheduled_at:
+        type: string
+    type: object
+  handlers.PermitDetailResponse:
+    properties:
+      applicant:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      department_id:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      inspections:
+        items:
+          $ref: '#/definitions/handlers.InspectionResponse'
+        type: array
+      issued_at:
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      permit_type:
+        type: string
+      property_address:
+        type: string
+      status:
+        type: string
+      submitted_at:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.PermitResponse:
+    properties:
+      applicant:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      department_id:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      issued_at:
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      permit_type:
+        type: string
+      property_address:
+        type: string
+      status:
+        type: string
+      submitted_at:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.ServiceRequestResponse:
+    properties:
+      assigned_to:
+        type: string
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      department_id:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      location:
+        items:
+          type: integer
+        type: array
+      metadata:
+        items:
+          type: integer
+        type: array
+      request_type:
+        type: string
+      status:
+        type: string
+      submitter_email:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.UserResponse:
+    properties:
+      created_at:
+        type: string
+      department_id:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      oidc_sub:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.assignRequest:
+    properties:
+      assigned_to:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.createDepartmentInput:
+    properties:
+      config:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  handlers.createFOIARequestInput:
+    properties:
+      department_id:
+        type: string
+      description:
+        type: string
+      due_date:
+        description: optional "2006-01-02"
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      requester_email:
+        type: string
+      requester_name:
+        type: string
+    type: object
+  handlers.createPermitRequest:
+    properties:
+      applicant:
+        items:
+          type: integer
+        type: array
+      department_id:
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      permit_type:
+        type: string
+      property_address:
+        type: string
+    type: object
+  handlers.createServiceRequestRequest:
+    properties:
+      department_id:
+        type: string
+      description:
+        type: string
+      location:
+        items:
+          type: integer
+        type: array
+      metadata:
+        items:
+          type: integer
+        type: array
+      request_type:
+        type: string
+      submitter_email:
+        type: string
+    type: object
+  handlers.createUserInput:
+    properties:
+      department_id:
+        type: string
+      email:
+        type: string
+      oidc_sub:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.createWebhookRequest:
+    properties:
+      description:
+        type: string
+      events:
+        items:
+          type: string
+        type: array
+      secret:
+        type: string
+      url:
+        type: string
+    type: object
+  handlers.scheduleInspectionRequest:
+    properties:
+      inspector_id:
+        type: string
+      scheduled_at:
+        type: string
+    type: object
+  handlers.updateInspectionRequest:
+    properties:
+      completed_at:
+        type: string
+      notes:
+        type: string
+      result:
+        type: string
+    type: object
+  handlers.updateStatusInput:
+    properties:
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Fieldstone Contributors
+    url: https://github.com/fieldstone/fieldstone
+  description: |-
+    A self-hostable platform for city governments to run common civic services.
+
+    Staff endpoints require a Bearer JWT from the configured OIDC provider.
+    Citizen endpoints (marked "public") do not require authentication.
+
+    **Development**: set `DEV_DISABLE_AUTH=true` in .env to bypass JWT
+    validation locally. Remove before production deployment.
+  license:
+    name: MIT
+    url: https://github.com/fieldstone/fieldstone/blob/main/LICENSE
+  title: Fieldstone Civic Services API
+  version: 0.1.0
+paths:
+  /v1/audit:
+    get:
+      description: |-
+        Returns a paginated, filterable view of the immutable audit log.
+        All filter parameters are optional and combinable.
+      parameters:
+      - default: 50
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: e.g. fieldstone.permits.permit.created
+        in: query
+        name: event_type
+        type: string
+      - description: e.g. permits
+        in: query
+        name: source_service
+        type: string
+      - description: RFC3339 start time e.g. 2026-05-01T00:00:00Z
+        in: query
+        name: from
+        type: string
+      - description: RFC3339 end time
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_fieldstone_fieldstone_services_audit_handlers.listResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit events
+      tags:
+      - audit
+  /v1/audit/{id}:
+    get:
+      parameters:
+      - description: Event UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.EventResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single audit event by ID
+      tags:
+      - audit
+  /v1/config/schemas/{resource_type}:
+    get:
+      description: |-
+        Returns the city-registered JSON Schema (draft-07) for the given resource
+        type. Used by DynamicMetadataForm and by permits/requests/records to
+        validate metadata on every write.
+      parameters:
+      - description: Resource type (permit, service_request, foia_request)
+        in: path
+        name: resource_type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.FieldSchemaResponse'
+        "404":
+          description: No schema registered for this type
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get the custom field schema for a resource type
+      tags:
+      - config
+    put:
+      consumes:
+      - application/json
+      description: |-
+        The request body must be a valid JSON Schema document (draft-07). This is
+        an idempotent upsert — calling it again replaces the previous schema.
+        Changes take effect immediately; the 60-second cache in domain services
+        means active requests may use the old schema for up to one minute.
+      parameters:
+      - description: Resource type
+        in: path
+        name: resource_type
+        required: true
+        type: string
+      - description: JSON Schema document
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.FieldSchemaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register or replace a custom field schema
+      tags:
+      - config
+  /v1/departments:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/handlers.DepartmentResponse'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List departments
+      tags:
+      - identity
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Department
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createDepartmentInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.DepartmentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Slug already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a department
+      tags:
+      - identity
+  /v1/permits:
+    get:
+      parameters:
+      - default: 20
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by status (submitted, under_review, approved, rejected,
+          expired)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_fieldstone_fieldstone_services_permits_handlers.listResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List permits
+      tags:
+      - permits
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Permit application
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createPermitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.PermitResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Metadata validation failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a permit application
+      tags:
+      - permits
+  /v1/permits/{id}:
+    get:
+      parameters:
+      - description: Permit UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PermitDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a permit with its inspections
+      tags:
+      - permits
+  /v1/permits/{id}/inspections:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Permit UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Inspection details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.scheduleInspectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.InspectionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Schedule a permit inspection
+      tags:
+      - permits
+  /v1/permits/{id}/inspections/{iid}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Permit UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Inspection UUID
+        in: path
+        name: iid
+        required: true
+        type: string
+      - description: Inspection outcome
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateInspectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.InspectionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update an inspection result
+      tags:
+      - permits
+  /v1/permits/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Validates the transition via the workflow service. Setting status to
+        'approved' also records issued_at. Publishes permit.status_changed.
+      parameters:
+      - description: Permit UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status transition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_fieldstone_fieldstone_services_permits_handlers.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PermitResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Transition not allowed by workflow
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update permit status
+      tags:
+      - permits
+  /v1/records/foia:
+    get:
+      parameters:
+      - default: 20
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by status (received, processing, awaiting_clarification,
+          fulfilled, denied, withdrawn)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_fieldstone_fieldstone_services_records_handlers.listResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List FOIA requests (staff)
+      tags:
+      - records
+    post:
+      consumes:
+      - application/json
+      description: Public endpoint — no authentication required.
+      parameters:
+      - description: FOIA request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createFOIARequestInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.FOIARequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Metadata validation failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit a FOIA request (public)
+      tags:
+      - records
+  /v1/records/foia/{id}:
+    get:
+      parameters:
+      - description: FOIA request UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.FOIARequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a FOIA request
+      tags:
+      - records
+  /v1/records/foia/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Validates the transition via the workflow service. Terminal statuses
+        (fulfilled, denied, withdrawn) also set closed_at.
+      parameters:
+      - description: FOIA request UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status transition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateStatusInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.FOIARequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Transition not allowed by workflow
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update FOIA request status
+      tags:
+      - records
+  /v1/requests:
+    get:
+      parameters:
+      - default: 20
+        description: Max results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by status (open, assigned, in_progress, resolved, closed)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_fieldstone_fieldstone_services_requests_handlers.listResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List service requests (staff)
+      tags:
+      - requests
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Public endpoint — no authentication required. Citizens use this to
+        report issues such as potholes, broken streetlights, or code violations.
+      parameters:
+      - description: Service request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createServiceRequestRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.ServiceRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Metadata validation failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit a 311 service request (public)
+      tags:
+      - requests
+  /v1/requests/{id}:
+    get:
+      parameters:
+      - description: Request UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServiceRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a service request
+      tags:
+      - requests
+  /v1/requests/{id}/assign:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Validates the open→assigned workflow transition. Updates assigned_to
+        and status atomically. Publishes service_request.assigned.
+      parameters:
+      - description: Request UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Assignment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.assignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServiceRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Transition not allowed by workflow
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign a request to a staff member
+      tags:
+      - requests
+  /v1/requests/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Validates the transition via the workflow service. Terminal statuses
+        (resolved, closed) also set closed_at.
+      parameters:
+      - description: Request UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status transition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_fieldstone_fieldstone_services_requests_handlers.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ServiceRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Transition not allowed by workflow
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update service request status
+      tags:
+      - requests
+  /v1/users:
+    get:
+      parameters:
+      - description: Filter by department UUID
+        in: query
+        name: department_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/handlers.UserResponse'
+              type: array
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List staff users
+      tags:
+      - identity
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Links a city employee's OIDC identity to a department and role.
+        Publishes identity.user.provisioned.
+      parameters:
+      - description: User
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: oidc_sub already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Provision a staff user
+      tags:
+      - identity
+  /v1/users/me:
+    get:
+      description: |-
+        Returns the staff user record matching the JWT subject claim.
+        In development (DEV_DISABLE_AUTH=true) returns a synthetic dev user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "404":
+          description: User not yet provisioned
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current authenticated user
+      tags:
+      - identity
+  /v1/webhooks:
+    get:
+      description: Secrets are never returned after creation.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/handlers.EndpointResponse'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List registered webhook endpoints
+      tags:
+      - webhooks
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Registers an HTTP endpoint to receive Fieldstone events. The secret is
+        shown once in the response and never returned again — store it securely.
+        Event patterns use NATS wildcards: * (one token), > (all remaining).
+      parameters:
+      - description: Webhook registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.EndpointCreatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register a webhook endpoint
+      tags:
+      - webhooks
+  /v1/webhooks/{id}:
+    delete:
+      description: Deletes the endpoint and its full delivery history.
+      parameters:
+      - description: Webhook UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove a webhook endpoint
+      tags:
+      - webhooks
+    get:
+      parameters:
+      - description: Webhook UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.EndpointDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get webhook details and delivery log
+      tags:
+      - webhooks
+  /v1/webhooks/{id}/test:
+    post:
+      description: |-
+        Dispatches a synthetic fieldstone.webhooks.test event synchronously
+        and records the delivery attempt. Use to verify connectivity.
+      parameters:
+      - description: Webhook UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send a test event to a webhook endpoint
+      tags:
+      - webhooks
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT Bearer token: `Bearer <token>`'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

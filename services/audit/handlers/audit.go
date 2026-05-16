@@ -64,6 +64,23 @@ func toResponse(e *auditdb.Event) *EventResponse {
 
 // ListEvents handles GET /v1/audit
 // Filters: limit, offset, event_type, source_service, from (RFC3339), to (RFC3339)
+// ListEvents godoc
+// @Summary      List audit events
+// @Description  Returns a paginated, filterable view of the immutable audit log.
+// @Description  All filter parameters are optional and combinable.
+// @Tags         audit
+// @Produce      json
+// @Param        limit           query  int     false  "Max results"           default(50)
+// @Param        offset          query  int     false  "Pagination offset"      default(0)
+// @Param        event_type      query  string  false  "e.g. fieldstone.permits.permit.created"
+// @Param        source_service  query  string  false  "e.g. permits"
+// @Param        from            query  string  false  "RFC3339 start time e.g. 2026-05-01T00:00:00Z"
+// @Param        to              query  string  false  "RFC3339 end time"
+// @Success      200  {object}  listResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/audit [get]
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
 	params := auditdb.ListEventsParams{
 		Limit:  int32(intParam(r, "limit", 50)),
@@ -120,6 +137,17 @@ func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
 
 // ─── Get event ────────────────────────────────────────────────────────────────
 
+// GetEvent godoc
+// @Summary      Get a single audit event by ID
+// @Tags         audit
+// @Produce      json
+// @Param        id  path  string  true  "Event UUID"
+// @Success      200  {object}  EventResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/audit/{id} [get]
 func (h *Handler) GetEvent(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	u, err := uuid.Parse(idStr)

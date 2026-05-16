@@ -21,6 +21,17 @@ var terminalStatuses = map[string]bool{
 
 // ─── List FOIA requests ───────────────────────────────────────────────────────
 
+// ListFOIARequests godoc
+// @Summary      List FOIA requests (staff)
+// @Tags         records
+// @Produce      json
+// @Param        limit   query  int     false  "Max results"       default(20)
+// @Param        offset  query  int     false  "Pagination offset"  default(0)
+// @Param        status  query  string  false  "Filter by status (received, processing, awaiting_clarification, fulfilled, denied, withdrawn)"
+// @Success      200  {object}  listResponse
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/records/foia [get]
 func (h *Handler) ListFOIARequests(w http.ResponseWriter, r *http.Request) {
 	limit := int32(parseIntParam(r, "limit", 20))
 	offset := int32(parseIntParam(r, "offset", 0))
@@ -72,6 +83,18 @@ type createFOIARequestInput struct {
 	Metadata       json.RawMessage `json:"metadata"`
 }
 
+// CreateFOIARequest godoc
+// @Summary      Submit a FOIA request (public)
+// @Description  Public endpoint — no authentication required.
+// @Tags         records
+// @Accept       json
+// @Produce      json
+// @Param        body  body  createFOIARequestInput  true  "FOIA request"
+// @Success      201  {object}  FOIARequestResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      422  {object}  map[string]string  "Metadata validation failed"
+// @Failure      500  {object}  map[string]string
+// @Router       /v1/records/foia [post]
 func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 	var req createFOIARequestInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,6 +176,17 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 
 // ─── Get FOIA request ─────────────────────────────────────────────────────────
 
+// GetFOIARequest godoc
+// @Summary      Get a FOIA request
+// @Tags         records
+// @Produce      json
+// @Param        id  path  string  true  "FOIA request UUID"
+// @Success      200  {object}  FOIARequestResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/records/foia/{id} [get]
 func (h *Handler) GetFOIARequest(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
@@ -181,6 +215,22 @@ type updateStatusInput struct {
 	Role   string `json:"role"`
 }
 
+// UpdateFOIAStatus godoc
+// @Summary      Update FOIA request status
+// @Description  Validates the transition via the workflow service. Terminal statuses
+// @Description  (fulfilled, denied, withdrawn) also set closed_at.
+// @Tags         records
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string             true  "FOIA request UUID"
+// @Param        body  body  updateStatusInput   true  "Status transition"
+// @Success      200  {object}  FOIARequestResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      422  {object}  map[string]string  "Transition not allowed by workflow"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/records/foia/{id}/status [patch]
 func (h *Handler) UpdateFOIAStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {

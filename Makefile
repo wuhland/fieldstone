@@ -1,4 +1,4 @@
-.PHONY: dev test test-integration test-race generate lint build migrate-up fmt vet
+.PHONY: dev test test-integration test-race generate lint build migrate-up fmt vet swagger install-tools
 
 dev:
 	docker compose --env-file .env \
@@ -25,6 +25,21 @@ test-race:
 
 generate:
 	go generate ./...
+
+# Regenerate the OpenAPI spec from handler annotations.
+# Requires swag: run `make install-tools` first.
+swagger:
+	swag init \
+		--generalInfo swag.go \
+		--dir "services/gateway,services/permits/handlers,services/requests/handlers,services/records/handlers,services/identity/handlers,services/webhooks/handlers,services/audit/handlers" \
+		--output services/gateway/docs \
+		--parseDependency
+	@rm -f services/gateway/docs/docs.go  # not needed; we embed swagger.json directly
+	@echo "Spec written to services/gateway/docs/swagger.json"
+	@echo "View at http://localhost:8080/docs after make dev"
+
+install-tools:
+	go install github.com/swaggo/swag/cmd/swag@v1.16.3
 
 lint:
 	golangci-lint run

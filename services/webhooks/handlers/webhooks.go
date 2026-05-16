@@ -107,6 +107,15 @@ func parseID(r *http.Request) (pgtype.UUID, error) {
 
 // ─── List webhooks ────────────────────────────────────────────────────────────
 
+// ListWebhooks godoc
+// @Summary      List registered webhook endpoints
+// @Description  Secrets are never returned after creation.
+// @Tags         webhooks
+// @Produce      json
+// @Success      200  {object}  map[string][]EndpointResponse
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/webhooks [get]
 func (h *WebhookHandler) ListWebhooks(w http.ResponseWriter, r *http.Request) {
 	endpoints, err := h.queries.ListEndpoints(r.Context())
 	if err != nil {
@@ -131,6 +140,20 @@ type createWebhookRequest struct {
 	Description string   `json:"description"`
 }
 
+// CreateWebhook godoc
+// @Summary      Register a webhook endpoint
+// @Description  Registers an HTTP endpoint to receive Fieldstone events. The secret is
+// @Description  shown once in the response and never returned again — store it securely.
+// @Description  Event patterns use NATS wildcards: * (one token), > (all remaining).
+// @Tags         webhooks
+// @Accept       json
+// @Produce      json
+// @Param        body  body  createWebhookRequest  true  "Webhook registration"
+// @Success      201  {object}  EndpointCreatedResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/webhooks [post]
 func (h *WebhookHandler) CreateWebhook(w http.ResponseWriter, r *http.Request) {
 	var req createWebhookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -178,6 +201,17 @@ func (h *WebhookHandler) CreateWebhook(w http.ResponseWriter, r *http.Request) {
 
 // ─── Get webhook ──────────────────────────────────────────────────────────────
 
+// GetWebhook godoc
+// @Summary      Get webhook details and delivery log
+// @Tags         webhooks
+// @Produce      json
+// @Param        id  path  string  true  "Webhook UUID"
+// @Success      200  {object}  EndpointDetailResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/webhooks/{id} [get]
 func (h *WebhookHandler) GetWebhook(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {
@@ -215,6 +249,17 @@ func (h *WebhookHandler) GetWebhook(w http.ResponseWriter, r *http.Request) {
 
 // ─── Delete webhook ───────────────────────────────────────────────────────────
 
+// DeleteWebhook godoc
+// @Summary      Remove a webhook endpoint
+// @Description  Deletes the endpoint and its full delivery history.
+// @Tags         webhooks
+// @Param        id  path  string  true  "Webhook UUID"
+// @Success      204
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/webhooks/{id} [delete]
 func (h *WebhookHandler) DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {
@@ -262,6 +307,19 @@ func (h *WebhookHandler) DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 
 // ─── Test webhook ─────────────────────────────────────────────────────────────
 
+// TestWebhook godoc
+// @Summary      Send a test event to a webhook endpoint
+// @Description  Dispatches a synthetic fieldstone.webhooks.test event synchronously
+// @Description  and records the delivery attempt. Use to verify connectivity.
+// @Tags         webhooks
+// @Produce      json
+// @Param        id  path  string  true  "Webhook UUID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/webhooks/{id}/test [post]
 func (h *WebhookHandler) TestWebhook(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {

@@ -10,6 +10,18 @@ import (
 	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 )
 
+// GetSchema godoc
+// @Summary      Get the custom field schema for a resource type
+// @Description  Returns the city-registered JSON Schema (draft-07) for the given resource
+// @Description  type. Used by DynamicMetadataForm and by permits/requests/records to
+// @Description  validate metadata on every write.
+// @Tags         config
+// @Produce      json
+// @Param        resource_type  path  string  true  "Resource type (permit, service_request, foia_request)"
+// @Success      200  {object}  FieldSchemaResponse
+// @Failure      404  {object}  map[string]string  "No schema registered for this type"
+// @Failure      500  {object}  map[string]string
+// @Router       /v1/config/schemas/{resource_type} [get]
 func (h *Handler) GetSchema(w http.ResponseWriter, r *http.Request) {
 	resourceType := chi.URLParam(r, "resource_type")
 
@@ -27,6 +39,22 @@ func (h *Handler) GetSchema(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, schemaToResponse(schema))
 }
 
+// PutSchema godoc
+// @Summary      Register or replace a custom field schema
+// @Description  The request body must be a valid JSON Schema document (draft-07). This is
+// @Description  an idempotent upsert — calling it again replaces the previous schema.
+// @Description  Changes take effect immediately; the 60-second cache in domain services
+// @Description  means active requests may use the old schema for up to one minute.
+// @Tags         config
+// @Accept       json
+// @Produce      json
+// @Param        resource_type  path  string          true  "Resource type"
+// @Param        body           body  object           true  "JSON Schema document"
+// @Success      200  {object}  FieldSchemaResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/config/schemas/{resource_type} [put]
 func (h *Handler) PutSchema(w http.ResponseWriter, r *http.Request) {
 	resourceType := chi.URLParam(r, "resource_type")
 

@@ -63,7 +63,8 @@ func main() {
 	r.Use(middleware.Recovery)
 	r.Use(middleware.Metrics("gateway"))
 
-	// Health — public, no auth
+	// Docs and health — public, no auth
+	registerDocRoutes(r)
 	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

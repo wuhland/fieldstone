@@ -19,6 +19,19 @@ type scheduleInspectionRequest struct {
 	ScheduledAt time.Time `json:"scheduled_at"`
 }
 
+// ScheduleInspection godoc
+// @Summary      Schedule a permit inspection
+// @Tags         permits
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string                    true  "Permit UUID"
+// @Param        body  body  scheduleInspectionRequest  true  "Inspection details"
+// @Success      201  {object}  InspectionResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits/{id}/inspections [post]
 func (h *Handler) ScheduleInspection(w http.ResponseWriter, r *http.Request) {
 	permitID, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
@@ -99,6 +112,20 @@ type updateInspectionRequest struct {
 	Notes       *string    `json:"notes"`
 }
 
+// UpdateInspection godoc
+// @Summary      Update an inspection result
+// @Tags         permits
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string                   true  "Permit UUID"
+// @Param        iid   path  string                   true  "Inspection UUID"
+// @Param        body  body  updateInspectionRequest   true  "Inspection outcome"
+// @Success      200  {object}  InspectionResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits/{id}/inspections/{iid} [patch]
 func (h *Handler) UpdateInspection(w http.ResponseWriter, r *http.Request) {
 	permitID, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {

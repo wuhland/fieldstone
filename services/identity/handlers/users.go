@@ -10,6 +10,16 @@ import (
 	identitydb "github.com/fieldstone/fieldstone/services/identity/db/generated"
 )
 
+// ListUsers godoc
+// @Summary      List staff users
+// @Tags         identity
+// @Produce      json
+// @Param        department_id  query  string  false  "Filter by department UUID"
+// @Success      200  {object}  map[string][]UserResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/users [get]
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	var (
 		users []*identitydb.StaffUser
@@ -39,6 +49,17 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"users": out})
 }
 
+// GetMe godoc
+// @Summary      Get current authenticated user
+// @Description  Returns the staff user record matching the JWT subject claim.
+// @Description  In development (DEV_DISABLE_AUTH=true) returns a synthetic dev user.
+// @Tags         identity
+// @Produce      json
+// @Success      200  {object}  UserResponse
+// @Failure      404  {object}  map[string]string  "User not yet provisioned"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/users/me [get]
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	claims, ok := auth.ClaimsFromContext(r.Context())
 	if !ok {
@@ -77,6 +98,20 @@ type createUserInput struct {
 
 var validRoles = map[string]bool{"admin": true, "reviewer": true, "staff": true}
 
+// CreateUser godoc
+// @Summary      Provision a staff user
+// @Description  Links a city employee's OIDC identity to a department and role.
+// @Description  Publishes identity.user.provisioned.
+// @Tags         identity
+// @Accept       json
+// @Produce      json
+// @Param        body  body  createUserInput  true  "User"
+// @Success      201  {object}  UserResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      409  {object}  map[string]string  "oidc_sub already exists"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/users [post]
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

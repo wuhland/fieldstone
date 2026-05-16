@@ -14,6 +14,17 @@ import (
 
 // ─── List permits ─────────────────────────────────────────────────────────────
 
+// ListPermits godoc
+// @Summary      List permits
+// @Tags         permits
+// @Produce      json
+// @Param        limit   query  int     false  "Max results"      default(20)
+// @Param        offset  query  int     false  "Pagination offset" default(0)
+// @Param        status  query  string  false  "Filter by status (submitted, under_review, approved, rejected, expired)"
+// @Success      200  {object}  listResponse
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits [get]
 func (h *Handler) ListPermits(w http.ResponseWriter, r *http.Request) {
 	limit := int32(parseIntParam(r, "limit", 20))
 	offset := int32(parseIntParam(r, "offset", 0))
@@ -64,6 +75,18 @@ type createPermitRequest struct {
 	Metadata        json.RawMessage `json:"metadata"`
 }
 
+// CreatePermit godoc
+// @Summary      Create a permit application
+// @Tags         permits
+// @Accept       json
+// @Produce      json
+// @Param        body  body  createPermitRequest  true  "Permit application"
+// @Success      201  {object}  PermitResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      422  {object}  map[string]string  "Metadata validation failed"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits [post]
 func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 	var req createPermitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -140,6 +163,17 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 
 // ─── Get permit ───────────────────────────────────────────────────────────────
 
+// GetPermit godoc
+// @Summary      Get a permit with its inspections
+// @Tags         permits
+// @Produce      json
+// @Param        id  path  string  true  "Permit UUID"
+// @Success      200  {object}  PermitDetailResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits/{id} [get]
 func (h *Handler) GetPermit(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
@@ -183,6 +217,22 @@ type updateStatusRequest struct {
 	Role   string `json:"role"`
 }
 
+// UpdatePermitStatus godoc
+// @Summary      Update permit status
+// @Description  Validates the transition via the workflow service. Setting status to
+// @Description  'approved' also records issued_at. Publishes permit.status_changed.
+// @Tags         permits
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string              true  "Permit UUID"
+// @Param        body  body  updateStatusRequest  true  "Status transition"
+// @Success      200  {object}  PermitResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      422  {object}  map[string]string  "Transition not allowed by workflow"
+// @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /v1/permits/{id}/status [patch]
 func (h *Handler) UpdatePermitStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
