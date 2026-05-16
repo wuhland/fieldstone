@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,14 +12,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/events"
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
+	webhooksdb "github.com/fieldstone/fieldstone/services/webhooks/db/generated"
 	"github.com/fieldstone/fieldstone/services/webhooks/handlers"
-	"github.com/go-chi/chi/v5"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+//go:embed db/migrations/*.sql
+var migrationFiles embed.FS
 
 const version = "0.1.0"
 
@@ -32,7 +38,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseDSN)
 	if err != nil {
@@ -41,6 +48,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	if err := runMigrations(ctx, pool, migrationFiles); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
 	nc, js, err := natsconn.Connect(cfg.NATSURL)
 	if err != nil {
 		slog.Error("failed to connect to NATS", "error", err)
@@ -48,16 +60,20 @@ func main() {
 	}
 	defer nc.Drain()
 
-	// TODO(fieldstone): load registered webhook endpoints from DB and set up dispatching
-	if err := subscribeToEvents(js, func(env events.EventEnvelope) {
-		slog.Info("webhook event received", "event_type", env.EventType)
-		// TODO(fieldstone): look up matching registered webhooks and call dispatch()
-	}); err != nil {
+	q := webhooksdb.New(pool)
+
+	if err := setupDispatcher(js, q); err != nil {
 		slog.Error("failed to subscribe to events", "error", err)
 		os.Exit(1)
 	}
 
-	h := handlers.NewWebhookHandler()
+	// dispatchFn wraps deliverToEndpoint so handlers/webhooks.go doesn't
+	// need to import the dispatcher package directly.
+	dispatchFn := func(ep *webhooksdb.Endpoint, env events.EventEnvelope) {
+		deliverToEndpoint(context.Background(), q, ep, env)
+	}
+
+	h := handlers.NewWebhookHandler(pool, q, dispatchFn)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -100,8 +116,9 @@ func main() {
 	}()
 
 	<-sigCh
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("shutdown error", "error", err)
 	}
