@@ -1,18 +1,18 @@
 -- name: GetPermit :one
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 WHERE id = $1;
 
 -- name: ListPermits :many
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: ListPermitsByStatus :many
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 WHERE status = $1
@@ -26,23 +26,23 @@ SELECT COUNT(*) FROM permits;
 SELECT COUNT(*) FROM permits WHERE status = $1;
 
 -- name: CreatePermit :one
-INSERT INTO permits (department_id, permit_type, status, applicant, property_address, metadata)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+INSERT INTO permits (department_id, permit_type, status, applicant, property_address, resident_id, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at;
 
 -- name: UpdatePermitStatus :one
 UPDATE permits
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at;
 
 -- name: SetPermitIssuedAt :one
 UPDATE permits
 SET issued_at = NOW(), status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at;
 
 -- name: GetInspection :one

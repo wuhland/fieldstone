@@ -59,6 +59,7 @@ type ServiceRequestResponse struct {
 	Location       json.RawMessage `json:"location"`
 	SubmitterEmail *string         `json:"submitter_email"`
 	AssignedTo     *string         `json:"assigned_to"`
+	ResidentID     *string         `json:"resident_id,omitempty"`
 	Metadata       json.RawMessage `json:"metadata"`
 	ClosedAt       *time.Time      `json:"closed_at"`
 	CreatedAt      time.Time       `json:"created_at"`
@@ -89,11 +90,21 @@ func srToResponse(sr *requestsdb.ServiceRequest) *ServiceRequestResponse {
 		Location:       sr.Location,
 		SubmitterEmail: sr.SubmitterEmail,
 		AssignedTo:     assignedTo,
+		ResidentID:     sr.ResidentID,
 		Metadata:       sr.Metadata,
 		ClosedAt:       sr.ClosedAt,
 		CreatedAt:      sr.CreatedAt,
 		UpdatedAt:      sr.UpdatedAt,
 	}
+}
+
+// residentSubFromRequest returns the OIDC sub of the authenticated resident, or ""
+// if the caller is staff or unauthenticated. Used for row-level access control.
+func residentSubFromRequest(r *http.Request) string {
+	if r.Header.Get("X-Fieldstone-Role") != "resident" {
+		return ""
+	}
+	return r.Header.Get("X-Fieldstone-Sub")
 }
 
 func uuidStr(u pgtype.UUID) string {

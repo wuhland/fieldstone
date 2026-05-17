@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -13,6 +14,12 @@ type MiddlewareConfig struct {
 	IssuerURL string
 	Audience  string
 	Cache     *JWKSCache
+
+	// ResidentIssuerURL, when set, enables a second OIDC issuer for residents
+	// (e.g. Login.gov). Tokens from this issuer receive the synthetic role
+	// "resident" regardless of what the token claims contain.
+	ResidentIssuerURL string
+	ResidentCache     *JWKSCache
 }
 
 func Middleware(cfg *MiddlewareConfig) func(http.Handler) http.Handler {
@@ -24,10 +31,31 @@ func Middleware(cfg *MiddlewareConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := parseToken(r.Context(), tokenStr, cfg)
-			if err != nil {
-				writeUnauthorized(w)
-				return
+			var claims *Claims
+			var err error
+
+			iss := peekIssuer(tokenStr)
+			if cfg.ResidentIssuerURL != "" && iss == cfg.ResidentIssuerURL {
+				claims, err = parseToken(r.Context(), tokenStr, cfg.ResidentCache, cfg.ResidentIssuerURL, cfg.Audience)
+				if err != nil {
+					writeUnauthorized(w)
+					return
+				}
+				claims.Roles = []string{"resident"}
+			} else {
+				claims, err = parseToken(r.Context(), tokenStr, cfg.Cache, cfg.IssuerURL, cfg.Audience)
+				if err != nil {
+					writeUnauthorized(w)
+					return
+				}
+			}
+
+			// Inject trusted internal headers so downstream services can identify
+			// the caller without re-parsing the JWT.
+			r.Header.Set("X-Fieldstone-Sub", claims.Subject)
+			r.Header.Set("X-Fieldstone-Email", claims.Email)
+			if len(claims.Roles) > 0 {
+				r.Header.Set("X-Fieldstone-Role", claims.Roles[0])
 			}
 
 			next.ServeHTTP(w, r.WithContext(ContextWithClaims(r.Context(), claims)))
@@ -43,17 +71,36 @@ func extractBearer(r *http.Request) (string, bool) {
 	return strings.TrimPrefix(hdr, "Bearer "), true
 }
 
-func parseToken(ctx context.Context, tokenStr string, cfg *MiddlewareConfig) (*Claims, error) {
+// peekIssuer extracts the iss claim without verifying the token signature.
+// Used only to select which key set to validate against; the full validation
+// still happens in parseToken.
+func peekIssuer(tokenStr string) string {
+	parts := strings.SplitN(tokenStr, ".", 3)
+	if len(parts) != 3 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var c struct {
+		Issuer string `json:"iss"`
+	}
+	json.Unmarshal(payload, &c) //nolint:errcheck — invalid JSON produces empty string, handled by caller
+	return c.Issuer
+}
+
+func parseToken(ctx context.Context, tokenStr string, cache *JWKSCache, issuerURL, audience string) (*Claims, error) {
 	token, err := jwt.Parse(tokenStr,
 		func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			kid, _ := t.Header["kid"].(string)
-			return cfg.Cache.GetKey(ctx, kid)
+			return cache.GetKey(ctx, kid)
 		},
-		jwt.WithIssuer(cfg.IssuerURL),
-		jwt.WithAudience(cfg.Audience),
+		jwt.WithIssuer(issuerURL),
+		jwt.WithAudience(audience),
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
@@ -66,8 +113,8 @@ func parseToken(ctx context.Context, tokenStr string, cfg *MiddlewareConfig) (*C
 	}
 
 	c := &Claims{
-		Issuer:   cfg.IssuerURL,
-		Audience: []string{cfg.Audience},
+		Issuer:   issuerURL,
+		Audience: []string{audience},
 	}
 	if sub, ok := mc["sub"].(string); ok {
 		c.Subject = sub

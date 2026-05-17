@@ -58,6 +58,7 @@ type FOIARequestResponse struct {
 	RequesterEmail string          `json:"requester_email"`
 	Description    string          `json:"description"`
 	DueDate        *string         `json:"due_date"` // "2006-01-02" or null
+	ResidentID     *string         `json:"resident_id,omitempty"`
 	Metadata       json.RawMessage `json:"metadata"`
 	ClosedAt       *time.Time      `json:"closed_at"`
 	CreatedAt      time.Time       `json:"created_at"`
@@ -87,11 +88,21 @@ func foiaToResponse(f *recordsdb.FOIARequest) *FOIARequestResponse {
 		RequesterEmail: f.RequesterEmail,
 		Description:    f.Description,
 		DueDate:        dueDate,
+		ResidentID:     f.ResidentID,
 		Metadata:       f.Metadata,
 		ClosedAt:       f.ClosedAt,
 		CreatedAt:      f.CreatedAt,
 		UpdatedAt:      f.UpdatedAt,
 	}
+}
+
+// residentSubFromRequest returns the OIDC sub of the authenticated resident, or ""
+// if the caller is staff or unauthenticated. Used for row-level access control.
+func residentSubFromRequest(r *http.Request) string {
+	if r.Header.Get("X-Fieldstone-Role") != "resident" {
+		return ""
+	}
+	return r.Header.Get("X-Fieldstone-Sub")
 }
 
 func uuidStr(u pgtype.UUID) string {

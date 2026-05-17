@@ -92,6 +92,35 @@ POST /v1/workflow/:resource_type/validate
 
 Status transition logic lives in YAML config, not in domain service code.
 
+## Identity model
+
+Fieldstone uses two distinct authentication tiers, both backed by standard OIDC.
+Fieldstone is an OIDC **relying party** — it validates tokens, never issues them.
+
+| Tier | Who | Typical provider | JWT issuer env var |
+|------|-----|------------------|--------------------|
+| Staff | City employees | City's OIDC provider (Okta, Azure AD, etc.) | `OIDC_ISSUER_URL` |
+| Residents | Citizens | Login.gov or any OIDC provider | `RESIDENT_OIDC_ISSUER_URL` |
+
+**Staff** accounts are provisioned in the identity service and backed by the city's
+enterprise OIDC provider. Staff JWTs carry `roles` claims (admin, reviewer, staff).
+
+**Residents** authenticate through any OIDC provider the city configures. For US
+municipalities, Login.gov is the recommended default — it is GSA-operated, privacy-focused,
+and purpose-built for government services. Internationally, GOV.UK One Login or any
+OIDC-compliant provider works. Because Fieldstone only depends on the OIDC protocol,
+cities can also self-host an identity provider (Keycloak, Authentik) for full
+sovereignty.
+
+The gateway detects which tier a token belongs to by inspecting the `iss` claim and
+validating against the corresponding JWKS endpoint. Resident tokens receive the
+synthetic role `"resident"` regardless of the token's own claims. The gateway then
+injects `X-Fieldstone-Role` and `X-Fieldstone-Sub` headers into the proxied request
+so domain services can apply row-level access control without re-parsing the JWT.
+
+**Row-level access**: residents can create and read their own submissions; all write
+operations (status changes, assignment) require staff.
+
 ## Rate limiting
 
 The gateway rate-limits all public endpoints (citizen-facing routes) using a

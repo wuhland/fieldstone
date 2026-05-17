@@ -17,6 +17,7 @@ type FOIARequest struct {
 	RequesterEmail string
 	Description    string
 	DueDate        pgtype.Date // nullable DATE column
+	ResidentID     *string
 	Metadata       json.RawMessage
 	ClosedAt       *time.Time
 	CreatedAt      time.Time
@@ -30,6 +31,7 @@ type CreateFOIARequestParams struct {
 	RequesterEmail string
 	Description    string
 	DueDate        pgtype.Date
+	ResidentID     *string
 	Metadata       json.RawMessage
 }
 

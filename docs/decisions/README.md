@@ -27,6 +27,7 @@ written in [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records) f
 | [0018](0018-transactional-outbox.md) | Transactional outbox for durable event publishing | Accepted — supersedes 0012 |
 | [0019](0019-dynamic-parameterized-queries.md) | Dynamic parameterized queries for optional filters | Accepted |
 | [0020](0020-webhook-secret-plaintext-storage.md) | Webhook secret stored as plaintext for HMAC signing | Accepted — documented spec deviation |
+| [0021](0021-resident-oidc-public-submission-auth.md) | Resident identity via configurable OIDC for public submissions | Accepted |
 
 ## Format
 

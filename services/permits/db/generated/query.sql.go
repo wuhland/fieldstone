@@ -13,7 +13,7 @@ import (
 var ErrNotFound = errors.New("not found")
 
 const getPermit = `
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 WHERE id = $1
@@ -25,7 +25,7 @@ func (q *Queries) GetPermit(ctx context.Context, id pgtype.UUID) (*Permit, error
 }
 
 const listPermits = `
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 ORDER BY created_at DESC
@@ -42,7 +42,7 @@ func (q *Queries) ListPermits(ctx context.Context, limit, offset int32) ([]*Perm
 }
 
 const listPermitsByStatus = `
-SELECT id, department_id, permit_type, status, applicant, property_address, metadata,
+SELECT id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
        submitted_at, issued_at, expires_at, created_at, updated_at
 FROM permits
 WHERE status = $1
@@ -76,9 +76,9 @@ func (q *Queries) CountPermitsByStatus(ctx context.Context, status string) (int6
 }
 
 const createPermit = `
-INSERT INTO permits (department_id, permit_type, status, applicant, property_address, metadata)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+INSERT INTO permits (department_id, permit_type, status, applicant, property_address, resident_id, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at
 `
 
@@ -89,6 +89,7 @@ func (q *Queries) CreatePermit(ctx context.Context, params CreatePermitParams) (
 		params.Status,
 		params.Applicant,
 		params.PropertyAddress,
+		params.ResidentID,
 		params.Metadata,
 	)
 	return scanPermit(row)
@@ -98,7 +99,7 @@ const updatePermitStatus = `
 UPDATE permits
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at
 `
 
@@ -111,7 +112,7 @@ const setPermitIssuedAt = `
 UPDATE permits
 SET issued_at = NOW(), status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, department_id, permit_type, status, applicant, property_address, metadata,
+RETURNING id, department_id, permit_type, status, applicant, property_address, resident_id, metadata,
           submitted_at, issued_at, expires_at, created_at, updated_at
 `
 
@@ -185,7 +186,7 @@ func scanPermit(row pgx.Row) (*Permit, error) {
 	var p Permit
 	err := row.Scan(
 		&p.ID, &p.DepartmentID, &p.PermitType, &p.Status,
-		&p.Applicant, &p.PropertyAddress, &p.Metadata,
+		&p.Applicant, &p.PropertyAddress, &p.ResidentID, &p.Metadata,
 		&p.SubmittedAt, &p.IssuedAt, &p.ExpiresAt, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {

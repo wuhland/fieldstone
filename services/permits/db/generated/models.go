@@ -16,6 +16,7 @@ type Permit struct {
 	Status          string
 	Applicant       json.RawMessage
 	PropertyAddress string
+	ResidentID      *string
 	Metadata        json.RawMessage
 	SubmittedAt     time.Time
 	IssuedAt        *time.Time
@@ -41,6 +42,7 @@ type CreatePermitParams struct {
 	Status          string
 	Applicant       json.RawMessage
 	PropertyAddress string
+	ResidentID      *string
 	Metadata        json.RawMessage
 }
 

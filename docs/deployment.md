@@ -87,6 +87,46 @@ The Fieldstone Overview dashboard is auto-provisioned. No manual Grafana setup n
 
 Set `GRAFANA_PASSWORD` in `.env` before production deployment.
 
+## Resident identity (OIDC)
+
+Fieldstone requires residents to authenticate before submitting service requests,
+FOIA requests, or permit applications. The city configures which OIDC provider
+residents use via `RESIDENT_OIDC_ISSUER_URL`.
+
+**Recommended: Login.gov (US municipalities)**
+
+Login.gov is a GSA-operated, privacy-focused identity provider purpose-built for
+government services. Residents who already have a Login.gov account (used for TSA
+PreCheck, federal benefits, etc.) can use it immediately.
+
+To integrate:
+
+1. Apply for a Login.gov partnership at partners.login.gov. Local governments are
+   eligible and there is no per-user fee.
+2. Register your application in the Login.gov sandbox for testing.
+3. Set `RESIDENT_OIDC_ISSUER_URL=https://idp.int.identitysandbox.gov` in `.env`
+   for sandbox testing, then `https://secure.login.gov` for production.
+4. Set `OIDC_AUDIENCE` to the client ID Login.gov assigns to your application.
+
+**Self-hosted alternative (Keycloak or Authentik)**
+
+For cities that cannot use Login.gov (international deployments, air-gapped
+environments, or while a Login.gov partnership is pending), add a self-hosted
+OIDC provider to the Docker Compose stack:
+
+```bash
+# Add Keycloak to your compose file, then:
+RESIDENT_OIDC_ISSUER_URL=http://keycloak:8080/realms/fieldstone
+```
+
+Keycloak's built-in "magic link" authenticator provides a passwordless email
+flow for residents without requiring passwords.
+
+**When RESIDENT_OIDC_ISSUER_URL is not set**, the resident-facing submission
+endpoints (POST /v1/requests, POST /v1/records/foia, POST /v1/permits) require
+a staff JWT. This preserves backward compatibility but means residents cannot
+submit directly until a resident OIDC provider is configured.
+
 ## Customizing workflows
 
 Edit `config/workflows/*.yaml`, then restart the workflow service:

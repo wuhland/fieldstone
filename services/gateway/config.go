@@ -8,9 +8,10 @@ import (
 type Config struct {
 	config.BaseConfig
 	Addr               string `env:"GATEWAY_PORT"           env-default:":8080"`
-	OIDCIssuerURL      string `env:"OIDC_ISSUER_URL"`
-	OIDCAudience       string `env:"OIDC_AUDIENCE"`
-	DevDisableAuth     bool   `env:"DEV_DISABLE_AUTH"       env-default:"false"`
+	OIDCIssuerURL         string `env:"OIDC_ISSUER_URL"`
+	OIDCAudience          string `env:"OIDC_AUDIENCE"`
+	ResidentOIDCIssuerURL string `env:"RESIDENT_OIDC_ISSUER_URL"`
+	DevDisableAuth        bool   `env:"DEV_DISABLE_AUTH"       env-default:"false"`
 	AllowedOrigins     string `env:"ALLOWED_ORIGINS"        env-default:"*"`
 	PermitsServiceURL  string `env:"PERMITS_SERVICE_URL"    env-required:"true"`
 	RequestsServiceURL string `env:"REQUESTS_SERVICE_URL"   env-required:"true"`

@@ -18,6 +18,7 @@ type ServiceRequest struct {
 	Location       json.RawMessage
 	SubmitterEmail *string
 	AssignedTo     pgtype.UUID // nullable: Valid=false when unassigned
+	ResidentID     *string
 	Metadata       json.RawMessage
 	ClosedAt       *time.Time
 	CreatedAt      time.Time
@@ -31,6 +32,7 @@ type CreateServiceRequestParams struct {
 	Description    string
 	Location       json.RawMessage
 	SubmitterEmail *string
+	ResidentID     *string
 	Metadata       json.RawMessage
 }
 

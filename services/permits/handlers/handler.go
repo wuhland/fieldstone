@@ -57,6 +57,7 @@ type PermitResponse struct {
 	Status          string          `json:"status"`
 	Applicant       json.RawMessage `json:"applicant"`
 	PropertyAddress string          `json:"property_address"`
+	ResidentID      *string         `json:"resident_id,omitempty"`
 	Metadata        json.RawMessage `json:"metadata"`
 	SubmittedAt     time.Time       `json:"submitted_at"`
 	IssuedAt        *time.Time      `json:"issued_at"`
@@ -109,6 +110,7 @@ func permitToResponse(p *permitsdb.Permit) *PermitResponse {
 		Status:          p.Status,
 		Applicant:       p.Applicant,
 		PropertyAddress: p.PropertyAddress,
+		ResidentID:      p.ResidentID,
 		Metadata:        p.Metadata,
 		SubmittedAt:     p.SubmittedAt,
 		IssuedAt:        p.IssuedAt,
@@ -116,6 +118,15 @@ func permitToResponse(p *permitsdb.Permit) *PermitResponse {
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
 	}
+}
+
+// residentSubFromRequest returns the OIDC sub of the authenticated resident, or ""
+// if the caller is staff or unauthenticated. Used for row-level access control.
+func residentSubFromRequest(r *http.Request) string {
+	if r.Header.Get("X-Fieldstone-Role") != "resident" {
+		return ""
+	}
+	return r.Header.Get("X-Fieldstone-Sub")
 }
 
 func inspectionToResponse(i *permitsdb.Inspection) *InspectionResponse {

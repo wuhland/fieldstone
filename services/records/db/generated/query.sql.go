@@ -14,7 +14,7 @@ var ErrNotFound = errors.New("not found")
 
 const getFOIARequest = `
 SELECT id, department_id, status, requester_name, requester_email, description,
-       due_date, metadata, closed_at, created_at, updated_at
+       due_date, resident_id, metadata, closed_at, created_at, updated_at
 FROM foia_requests
 WHERE id = $1
 `
@@ -26,7 +26,7 @@ func (q *Queries) GetFOIARequest(ctx context.Context, id pgtype.UUID) (*FOIARequ
 
 const listFOIARequests = `
 SELECT id, department_id, status, requester_name, requester_email, description,
-       due_date, metadata, closed_at, created_at, updated_at
+       due_date, resident_id, metadata, closed_at, created_at, updated_at
 FROM foia_requests
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -43,7 +43,7 @@ func (q *Queries) ListFOIARequests(ctx context.Context, limit, offset int32) ([]
 
 const listFOIARequestsByStatus = `
 SELECT id, department_id, status, requester_name, requester_email, description,
-       due_date, metadata, closed_at, created_at, updated_at
+       due_date, resident_id, metadata, closed_at, created_at, updated_at
 FROM foia_requests
 WHERE status = $1
 ORDER BY created_at DESC
@@ -77,10 +77,10 @@ func (q *Queries) CountFOIARequestsByStatus(ctx context.Context, status string) 
 
 const createFOIARequest = `
 INSERT INTO foia_requests
-    (department_id, status, requester_name, requester_email, description, due_date, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+    (department_id, status, requester_name, requester_email, description, due_date, resident_id, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, department_id, status, requester_name, requester_email, description,
-          due_date, metadata, closed_at, created_at, updated_at
+          due_date, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) CreateFOIARequest(ctx context.Context, params CreateFOIARequestParams) (*FOIARequest, error) {
@@ -91,6 +91,7 @@ func (q *Queries) CreateFOIARequest(ctx context.Context, params CreateFOIAReques
 		params.RequesterEmail,
 		params.Description,
 		params.DueDate,
+		params.ResidentID,
 		params.Metadata,
 	)
 	return scanFOIA(row)
@@ -101,7 +102,7 @@ UPDATE foia_requests
 SET status = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING id, department_id, status, requester_name, requester_email, description,
-          due_date, metadata, closed_at, created_at, updated_at
+          due_date, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) UpdateFOIAStatus(ctx context.Context, params UpdateFOIAStatusParams) (*FOIARequest, error) {
@@ -114,7 +115,7 @@ UPDATE foia_requests
 SET status = $2, closed_at = NOW(), updated_at = NOW()
 WHERE id = $1
 RETURNING id, department_id, status, requester_name, requester_email, description,
-          due_date, metadata, closed_at, created_at, updated_at
+          due_date, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) CloseFOIARequest(ctx context.Context, id pgtype.UUID, status string) (*FOIARequest, error) {
@@ -127,7 +128,7 @@ func scanFOIA(row pgx.Row) (*FOIARequest, error) {
 	err := row.Scan(
 		&f.ID, &f.DepartmentID, &f.Status,
 		&f.RequesterName, &f.RequesterEmail, &f.Description,
-		&f.DueDate, &f.Metadata, &f.ClosedAt,
+		&f.DueDate, &f.ResidentID, &f.Metadata, &f.ClosedAt,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
 	if err != nil {

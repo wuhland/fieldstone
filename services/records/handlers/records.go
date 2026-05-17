@@ -84,16 +84,19 @@ type createFOIARequestInput struct {
 }
 
 // CreateFOIARequest godoc
-// @Summary      Submit a FOIA request (public)
-// @Description  Public endpoint — no authentication required.
+// @Summary      Submit a FOIA request
+// @Description  Requires a resident or staff JWT. The authenticated resident's OIDC sub
+// @Description  is stored as resident_id so they can retrieve their own request later.
 // @Tags         records
 // @Accept       json
 // @Produce      json
 // @Param        body  body  createFOIARequestInput  true  "FOIA request"
 // @Success      201  {object}  FOIARequestResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
 // @Failure      422  {object}  map[string]string  "Metadata validation failed"
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /v1/records/foia [post]
 func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 	var req createFOIARequestInput
@@ -136,6 +139,11 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var residentID *string
+	if sub := residentSubFromRequest(r); sub != "" {
+		residentID = &sub
+	}
+
 	tx, err := h.pool.Begin(r.Context())
 	if err != nil {
 		slog.Error("begin transaction", "error", err)
@@ -151,6 +159,7 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 		RequesterEmail: req.RequesterEmail,
 		Description:    req.Description,
 		DueDate:        dueDate,
+		ResidentID:     residentID,
 		Metadata:       metadata,
 	})
 	if err != nil {
@@ -178,11 +187,13 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 
 // GetFOIARequest godoc
 // @Summary      Get a FOIA request
+// @Description  Staff can retrieve any FOIA request. Residents can only retrieve their own.
 // @Tags         records
 // @Produce      json
 // @Param        id  path  string  true  "FOIA request UUID"
 // @Success      200  {object}  FOIARequestResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Security     BearerAuth
@@ -203,6 +214,13 @@ func (h *Handler) GetFOIARequest(w http.ResponseWriter, r *http.Request) {
 		slog.Error("get FOIA request", "error", err)
 		writeError(w, r, http.StatusInternalServerError, "failed to get request")
 		return
+	}
+
+	if sub := residentSubFromRequest(r); sub != "" {
+		if f.ResidentID == nil || *f.ResidentID != sub {
+			writeError(w, r, http.StatusForbidden, "forbidden")
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, foiaToResponse(f))

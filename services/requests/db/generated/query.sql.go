@@ -14,7 +14,7 @@ var ErrNotFound = errors.New("not found")
 
 const getServiceRequest = `
 SELECT id, department_id, request_type, status, description, location,
-       submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+       submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 FROM service_requests
 WHERE id = $1
 `
@@ -26,7 +26,7 @@ func (q *Queries) GetServiceRequest(ctx context.Context, id pgtype.UUID) (*Servi
 
 const listServiceRequests = `
 SELECT id, department_id, request_type, status, description, location,
-       submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+       submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 FROM service_requests
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -43,7 +43,7 @@ func (q *Queries) ListServiceRequests(ctx context.Context, limit, offset int32) 
 
 const listServiceRequestsByStatus = `
 SELECT id, department_id, request_type, status, description, location,
-       submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+       submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 FROM service_requests
 WHERE status = $1
 ORDER BY created_at DESC
@@ -77,10 +77,10 @@ func (q *Queries) CountServiceRequestsByStatus(ctx context.Context, status strin
 
 const createServiceRequest = `
 INSERT INTO service_requests
-    (department_id, request_type, status, description, location, submitter_email, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+    (department_id, request_type, status, description, location, submitter_email, resident_id, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, department_id, request_type, status, description, location,
-          submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+          submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) CreateServiceRequest(ctx context.Context, params CreateServiceRequestParams) (*ServiceRequest, error) {
@@ -91,6 +91,7 @@ func (q *Queries) CreateServiceRequest(ctx context.Context, params CreateService
 		params.Description,
 		params.Location,
 		params.SubmitterEmail,
+		params.ResidentID,
 		params.Metadata,
 	)
 	return scanServiceRequest(row)
@@ -101,7 +102,7 @@ UPDATE service_requests
 SET status = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING id, department_id, request_type, status, description, location,
-          submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+          submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) UpdateServiceRequestStatus(ctx context.Context, params UpdateServiceRequestStatusParams) (*ServiceRequest, error) {
@@ -114,7 +115,7 @@ UPDATE service_requests
 SET status = $2, closed_at = NOW(), updated_at = NOW()
 WHERE id = $1
 RETURNING id, department_id, request_type, status, description, location,
-          submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+          submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) CloseServiceRequest(ctx context.Context, id pgtype.UUID, status string) (*ServiceRequest, error) {
@@ -127,7 +128,7 @@ UPDATE service_requests
 SET assigned_to = $2, status = $3, updated_at = NOW()
 WHERE id = $1
 RETURNING id, department_id, request_type, status, description, location,
-          submitter_email, assigned_to, metadata, closed_at, created_at, updated_at
+          submitter_email, assigned_to, resident_id, metadata, closed_at, created_at, updated_at
 `
 
 func (q *Queries) AssignServiceRequest(ctx context.Context, params AssignServiceRequestParams) (*ServiceRequest, error) {
@@ -139,7 +140,7 @@ func scanServiceRequest(row pgx.Row) (*ServiceRequest, error) {
 	var sr ServiceRequest
 	err := row.Scan(
 		&sr.ID, &sr.DepartmentID, &sr.RequestType, &sr.Status, &sr.Description,
-		&sr.Location, &sr.SubmitterEmail, &sr.AssignedTo, &sr.Metadata,
+		&sr.Location, &sr.SubmitterEmail, &sr.AssignedTo, &sr.ResidentID, &sr.Metadata,
 		&sr.ClosedAt, &sr.CreatedAt, &sr.UpdatedAt,
 	)
 	if err != nil {

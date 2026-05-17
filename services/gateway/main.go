@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,28 +32,50 @@ func main() {
 
 	ctx := context.Background()
 
-	// Build the auth middleware. In dev (DEV_DISABLE_AUTH=true) all requests
-	// are treated as authenticated so the service can be exercised without an
-	// OIDC provider. Never set this in production.
-	var authMW func(http.Handler) http.Handler
+	// staffAuthMW validates staff OIDC JWTs (single issuer).
+	// residentAuthMW validates staff OR resident JWTs (multi-issuer when configured).
+	// In dev mode both are passthroughs so the services can be exercised without
+	// an OIDC provider. Never set DEV_DISABLE_AUTH in production.
+	var staffAuthMW, residentAuthMW func(http.Handler) http.Handler
+
 	if cfg.DevDisableAuth {
 		slog.Warn("DEV_DISABLE_AUTH=true — authentication is disabled, do not use in production")
-		authMW = func(next http.Handler) http.Handler { return next }
+		staffAuthMW = func(next http.Handler) http.Handler { return next }
+		residentAuthMW = func(next http.Handler) http.Handler { return next }
 	} else {
 		if cfg.OIDCIssuerURL == "" || cfg.OIDCAudience == "" {
 			slog.Error("OIDC_ISSUER_URL and OIDC_AUDIENCE are required when DEV_DISABLE_AUTH is false")
 			os.Exit(1)
 		}
-		jwksCache, err := newJWKSCache(ctx, cfg.OIDCIssuerURL)
+
+		staffCache, err := newJWKSCache(ctx, cfg.OIDCIssuerURL)
 		if err != nil {
-			slog.Error("failed to initialize JWKS cache", "error", err)
+			slog.Error("failed to initialize staff JWKS cache", "error", err)
 			os.Exit(1)
 		}
-		authMW = auth.Middleware(&auth.MiddlewareConfig{
+
+		staffAuthMW = auth.Middleware(&auth.MiddlewareConfig{
 			IssuerURL: cfg.OIDCIssuerURL,
 			Audience:  cfg.OIDCAudience,
-			Cache:     jwksCache,
+			Cache:     staffCache,
 		})
+
+		residentCfg := &auth.MiddlewareConfig{
+			IssuerURL: cfg.OIDCIssuerURL,
+			Audience:  cfg.OIDCAudience,
+			Cache:     staffCache,
+		}
+		if cfg.ResidentOIDCIssuerURL != "" {
+			residentCache, err := newJWKSCache(ctx, cfg.ResidentOIDCIssuerURL)
+			if err != nil {
+				slog.Error("failed to initialize resident JWKS cache", "error", err)
+				os.Exit(1)
+			}
+			residentCfg.ResidentIssuerURL = cfg.ResidentOIDCIssuerURL
+			residentCfg.ResidentCache = residentCache
+			slog.Info("resident OIDC issuer configured", "issuer", cfg.ResidentOIDCIssuerURL)
+		}
+		residentAuthMW = auth.Middleware(residentCfg)
 	}
 
 	rl := newRateLimiter(cfg.RedisURL, cfg.RateLimitPerMin, time.Minute)
@@ -62,8 +85,10 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recovery)
 	r.Use(middleware.Metrics("gateway"))
+	// Strip any X-Fieldstone-* headers from incoming client requests to prevent
+	// spoofing of gateway-injected identity headers.
+	r.Use(stripInternalHeaders)
 
-	// Docs and health — public, no auth
 	registerDocRoutes(r)
 	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -75,22 +100,42 @@ func main() {
 		})
 	})
 
-	// Public routes (rate-limited, no auth required)
-	// POST /v1/requests — public so citizens can submit service requests
-	// GET /v1/permits/:id/status — public permit status lookup
+	// Public route: permit status is readable without authentication.
 	r.Group(func(r chi.Router) {
 		r.Use(rateLimitMiddleware(rl, cfg.RateLimitPerMin))
-		r.Post("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
 		r.Get("/v1/permits/{id}/status", newProxy(cfg.PermitsServiceURL).ServeHTTP)
-		r.Post("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)
 	})
 
-	// Authenticated routes — staff only
+	// Resident-capable routes: accept both staff and resident JWTs.
+	// Domain services use the X-Fieldstone-Role header to apply row-level access
+	// control (residents can only read their own submissions).
 	r.Group(func(r chi.Router) {
-		r.Use(authMW)
-		r.Mount("/v1/permits", newProxy(cfg.PermitsServiceURL))
-		r.Mount("/v1/requests", newProxy(cfg.RequestsServiceURL))
-		r.Mount("/v1/records", newProxy(cfg.RecordsServiceURL))
+		r.Use(rateLimitMiddleware(rl, cfg.RateLimitPerMin))
+		r.Use(residentAuthMW)
+		r.Post("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		r.Get("/v1/requests/{id}", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		r.Post("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)
+		r.Get("/v1/records/foia/{id}", newProxy(cfg.RecordsServiceURL).ServeHTTP)
+		r.Post("/v1/permits", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Get("/v1/permits/{id}", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+	})
+
+	// Staff-only routes: reject resident JWTs (wrong issuer → 401).
+	r.Group(func(r chi.Router) {
+		r.Use(staffAuthMW)
+		// Requests management
+		r.Get("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		r.Patch("/v1/requests/{id}/status", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		r.Patch("/v1/requests/{id}/assign", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		// Records management
+		r.Get("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)
+		r.Patch("/v1/records/foia/{id}/status", newProxy(cfg.RecordsServiceURL).ServeHTTP)
+		// Permits management
+		r.Get("/v1/permits", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Patch("/v1/permits/{id}/status", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Post("/v1/permits/{id}/inspections", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Patch("/v1/permits/{id}/inspections/{iid}", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		// Identity, config, and platform services
 		r.Mount("/v1/users", newProxy(cfg.IdentityServiceURL))
 		r.Mount("/v1/departments", newProxy(cfg.IdentityServiceURL))
 		r.Mount("/v1/config", newProxy(cfg.IdentityServiceURL))
@@ -123,4 +168,18 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("shutdown error", "error", err)
 	}
+}
+
+// stripInternalHeaders removes X-Fieldstone-* headers from incoming client
+// requests. The auth middleware re-sets these after JWT validation, so only
+// gateway-validated values reach downstream services.
+func stripInternalHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for key := range r.Header {
+			if strings.HasPrefix(key, "X-Fieldstone-") {
+				delete(r.Header, key)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }

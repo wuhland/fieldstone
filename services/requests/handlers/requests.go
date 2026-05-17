@@ -83,17 +83,19 @@ type createServiceRequestRequest struct {
 }
 
 // CreateRequest godoc
-// @Summary      Submit a 311 service request (public)
-// @Description  Public endpoint — no authentication required. Citizens use this to
-// @Description  report issues such as potholes, broken streetlights, or code violations.
+// @Summary      Submit a 311 service request
+// @Description  Requires a resident or staff JWT. The authenticated resident's OIDC sub
+// @Description  is stored as resident_id so they can retrieve their own submissions later.
 // @Tags         requests
 // @Accept       json
 // @Produce      json
 // @Param        body  body  createServiceRequestRequest  true  "Service request"
 // @Success      201  {object}  ServiceRequestResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
 // @Failure      422  {object}  map[string]string  "Metadata validation failed"
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /v1/requests [post]
 func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 	var req createServiceRequestRequest
@@ -134,6 +136,11 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 		submitterEmail = &req.SubmitterEmail
 	}
 
+	var residentID *string
+	if sub := residentSubFromRequest(r); sub != "" {
+		residentID = &sub
+	}
+
 	tx, err := h.pool.Begin(r.Context())
 	if err != nil {
 		slog.Error("begin transaction", "error", err)
@@ -149,6 +156,7 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 		Description:    req.Description,
 		Location:       defaultJSON(req.Location, "{}"),
 		SubmitterEmail: submitterEmail,
+		ResidentID:     residentID,
 		Metadata:       metadata,
 	})
 	if err != nil {
@@ -176,11 +184,13 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 
 // GetRequest godoc
 // @Summary      Get a service request
+// @Description  Staff can retrieve any request. Residents can only retrieve their own.
 // @Tags         requests
 // @Produce      json
 // @Param        id  path  string  true  "Request UUID"
 // @Success      200  {object}  ServiceRequestResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Security     BearerAuth
@@ -201,6 +211,13 @@ func (h *Handler) GetRequest(w http.ResponseWriter, r *http.Request) {
 		slog.Error("get service request", "error", err)
 		writeError(w, r, http.StatusInternalServerError, "failed to get request")
 		return
+	}
+
+	if sub := residentSubFromRequest(r); sub != "" {
+		if sr.ResidentID == nil || *sr.ResidentID != sub {
+			writeError(w, r, http.StatusForbidden, "forbidden")
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, srToResponse(sr))

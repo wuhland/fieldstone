@@ -77,12 +77,15 @@ type createPermitRequest struct {
 
 // CreatePermit godoc
 // @Summary      Create a permit application
+// @Description  Requires a resident or staff JWT. The authenticated resident's OIDC sub
+// @Description  is stored as resident_id so they can retrieve their own application later.
 // @Tags         permits
 // @Accept       json
 // @Produce      json
 // @Param        body  body  createPermitRequest  true  "Permit application"
 // @Success      201  {object}  PermitResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
 // @Failure      422  {object}  map[string]string  "Metadata validation failed"
 // @Failure      500  {object}  map[string]string
 // @Security     BearerAuth
@@ -124,6 +127,11 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var residentID *string
+	if sub := residentSubFromRequest(r); sub != "" {
+		residentID = &sub
+	}
+
 	tx, err := h.pool.Begin(r.Context())
 	if err != nil {
 		slog.Error("begin transaction", "error", err)
@@ -138,6 +146,7 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 		Status:          initialStatus,
 		Applicant:       defaultJSON(req.Applicant, "{}"),
 		PropertyAddress: req.PropertyAddress,
+		ResidentID:      residentID,
 		Metadata:        metadata,
 	})
 	if err != nil {
@@ -165,11 +174,13 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 
 // GetPermit godoc
 // @Summary      Get a permit with its inspections
+// @Description  Staff can retrieve any permit. Residents can only retrieve their own.
 // @Tags         permits
 // @Produce      json
 // @Param        id  path  string  true  "Permit UUID"
 // @Success      200  {object}  PermitDetailResponse
 // @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Security     BearerAuth
@@ -190,6 +201,13 @@ func (h *Handler) GetPermit(w http.ResponseWriter, r *http.Request) {
 		slog.Error("get permit", "error", err)
 		writeError(w, r, http.StatusInternalServerError, "failed to get permit")
 		return
+	}
+
+	if sub := residentSubFromRequest(r); sub != "" {
+		if permit.ResidentID == nil || *permit.ResidentID != sub {
+			writeError(w, r, http.StatusForbidden, "forbidden")
+			return
+		}
 	}
 
 	inspections, err := h.queries.ListInspectionsByPermit(r.Context(), id)
