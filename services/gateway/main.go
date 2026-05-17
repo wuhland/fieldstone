@@ -141,7 +141,7 @@ func main() {
 		r.Mount("/v1/config", newProxy(cfg.IdentityServiceURL))
 		r.Mount("/v1/audit", newProxy(cfg.AuditServiceURL))
 		r.Mount("/v1/webhooks", newProxy(cfg.WebhooksServiceURL))
-		r.Mount("/v1/workflow", newProxy(cfg.WorkflowServiceURL))
+		r.Mount("/v1/workflow", newProxy(cfg.WorkflowWorkerURL))
 	})
 
 	srv := &http.Server{

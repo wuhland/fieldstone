@@ -177,6 +177,10 @@ func (h *Handler) CreateRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.workflow.StartWorkflow(r.Context(), "service_request", resp.ID, residentID); err != nil {
+		slog.Warn("failed to start service_request workflow", "request_id", resp.ID, "error", err)
+	}
+
 	writeJSON(w, http.StatusCreated, resp)
 }
 
@@ -279,7 +283,7 @@ func (h *Handler) UpdateRequestStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.workflow.ValidateTransition(r.Context(), "service_request", sr.Status, req.Status, req.Role); err != nil {
+	if err := h.workflow.ValidateTransition(r.Context(), "service_request", chi.URLParam(r, "id"), sr.Status, req.Status, req.Role); err != nil {
 		writeError(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
@@ -382,8 +386,8 @@ func (h *Handler) AssignRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate open→assigned transition via workflow service
-	if err := h.workflow.ValidateTransition(r.Context(), "service_request", sr.Status, "assigned", req.Role); err != nil {
+	// Validate open→assigned transition via Temporal Update
+	if err := h.workflow.ValidateTransition(r.Context(), "service_request", chi.URLParam(r, "id"), sr.Status, "assigned", req.Role); err != nil {
 		writeError(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
 	}

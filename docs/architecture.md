@@ -43,9 +43,13 @@ All services
   │  (schemas)  │     │ (rate lmt) │     │  JetStream   │
   └─────────────┘     └────────────┘     └──────────────┘
 
-  ┌──────────────┐     ┌───────────┐
-  │  Prometheus  │◀────│ /metrics  │  (all 9 services scrape endpoint)
-  └──────┬───────┘     └───────────┘
+  ┌────────────────┐     ┌───────────┐
+  │   Prometheus   │◀────│ /metrics  │  (all services scrape endpoint)
+  └──────┬─────────┘     └───────────┘
+  ┌────────────────┐
+  │  Temporal      │  Durable workflow execution (PostgreSQL backend)
+  │  (+ UI :8233)  │
+  └────────────────┘
          │
   ┌──────▼───────┐
   │   Grafana    │  Fieldstone Overview dashboard (auto-provisioned)
@@ -70,27 +74,41 @@ set server-side. Services never reference another service's schema in queries.
 ## Event flow
 
 1. HTTP request arrives at a domain service handler
-2. Handler writes to its database (commits transaction)
-3. After commit, handler puts event on a buffered channel (size 1000)
-4. Background goroutine drains the channel, publishing to NATS JetStream
-5. Failed NATS publish is logged at ERROR but does NOT fail the HTTP request
+2. Handler opens a transaction, writes to its database, and writes an outbox row in
+   the same transaction (ADR-0018)
+3. Transaction commits — both the domain write and the outbox row are durable
+4. Background relay reads pending outbox rows and publishes to NATS JetStream
+5. Failed NATS publish is retried; the row is not deleted until publish succeeds
 6. Subscribers (audit, webhooks, notify, extensions) receive events **independently**
    — the stream uses `InterestPolicy`, so each durable consumer gets every event
 
-> **Upcoming**: the buffered channel will be replaced with a transactional outbox
-> pattern so audit events are durable even across process crashes.
+## Workflow execution
 
-## Workflow validation
+Every resource (permit, service request, FOIA request) has a durable Temporal workflow
+execution that tracks its lifecycle from creation to terminal state.
 
-Before any status change, domain services call the workflow service:
+**Staff transitions** use Temporal Updates — synchronous, validated against the YAML
+config baked into the workflow's input at creation time:
 
 ```
-POST /v1/workflow/:resource_type/validate
-{"from": "submitted", "to": "under_review", "role": "reviewer"}
-→ 200 if allowed, 422 if not
+temporalClient.UpdateWorkflow(ctx, "permit-<id>", "validate-transition", {from, to, role})
+→ returns nil if allowed, error if not
 ```
 
-Status transition logic lives in YAML config, not in domain service code.
+**Resident actions** (withdrawal) use Temporal Signals — the signal fires an activity
+that writes to the domain DB and publishes the event. The domain handler is not involved.
+
+**Automated transitions** (permit expiry, FOIA deadline) use Temporal timers that fire
+activities when the deadline is reached.
+
+For resources that predate Temporal adoption, status updates fall back to HTTP
+validation against the workflow-worker's `/v1/workflow/{type}/validate` endpoint.
+
+The `workflow-worker` service also serves the `/v1/workflow/*` HTTP endpoints
+(statuses, transitions, initial status) so the gateway and domain clients can query
+YAML-defined workflow config without parsing it themselves.
+
+Status transition logic lives in `config/workflows/*.yaml`, not in Go code.
 
 ## Identity model
 
@@ -121,9 +139,28 @@ so domain services can apply row-level access control without re-parsing the JWT
 **Row-level access**: residents can create and read their own submissions; all write
 operations (status changes, assignment) require staff.
 
+## Scope boundaries
+
+Fieldstone tracks and routes civic service submissions through their lifecycle.
+It deliberately excludes:
+
+- **Document storage** — attachments and produced records (e.g., the documents
+  returned in response to a FOIA request) are not stored; Fieldstone tracks the
+  request, not the files.
+- **Payments** — permit fees, fines, and processing charges are out of scope.
+- **Scheduling/calendar** — inspection scheduling stores a `scheduled_at` timestamp;
+  calendar invites and scheduling UI are not included.
+- **GIS / spatial queries** — location is stored as a freetext field; spatial
+  indexing and map integration are handled by an extension service consuming events.
+- **Resident notification** — the `notify` service is an unimplemented stub. The
+  supported pattern is to register webhooks and route events to the city's existing
+  notification infrastructure (or a no-code platform such as Zapier).
+- **Resident portal UI** — the bundled frontend is a staff management portal.
+  A resident-facing interface can be built on top of the public API.
+
 ## Rate limiting
 
-The gateway rate-limits all public endpoints (citizen-facing routes) using a
+The gateway rate-limits resident-capable routes using a
 Redis-backed sliding-window algorithm. Each gateway replica shares state via Redis,
 so the limit is consistent regardless of replica count. If Redis is unavailable,
 the limiter fails open (requests are allowed through) and logs an error.

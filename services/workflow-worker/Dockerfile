@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o audit ./services/audit
+RUN CGO_ENABLED=0 GOOS=linux go build -o workflow-worker ./services/workflow-worker
 
 FROM alpine:3.20
 
@@ -15,8 +15,8 @@ RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /app/audit .
+COPY --from=builder /app/workflow-worker .
 
-EXPOSE 8087
+EXPOSE 8085
 
-ENTRYPOINT ["./audit"]
+ENTRYPOINT ["./workflow-worker"]

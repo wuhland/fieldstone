@@ -180,6 +180,10 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.workflow.StartWorkflow(r.Context(), "foia_request", resp.ID, residentID); err != nil {
+		slog.Warn("failed to start foia_request workflow", "request_id", resp.ID, "error", err)
+	}
+
 	writeJSON(w, http.StatusCreated, resp)
 }
 
@@ -282,7 +286,7 @@ func (h *Handler) UpdateFOIAStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.workflow.ValidateTransition(r.Context(), "foia_request", f.Status, req.Status, req.Role); err != nil {
+	if err := h.workflow.ValidateTransition(r.Context(), "foia_request", chi.URLParam(r, "id"), f.Status, req.Status, req.Role); err != nil {
 		writeError(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
 	}

@@ -13,6 +13,22 @@ Fieldstone provides the backend infrastructure for common municipal services:
 - **Audit logging** — immutable record of every state change
 - **Webhooks** — HTTP delivery of events to external systems
 
+## Who uses it
+
+**Residents** submit service requests, FOIA requests, and permit applications through
+the city's public-facing interface. They authenticate via a configurable OIDC provider
+— for US municipalities, Login.gov is the recommended default. Residents can check the
+status of their own submissions without staff assistance.
+
+**City staff** review, assign, and action all submissions. Staff authenticate via the
+city's enterprise OIDC provider (Okta, Azure AD, Keycloak, etc.) and are provisioned
+with one of three roles: `admin`, `reviewer`, or `staff`. The bundled frontend is a
+staff-only portal.
+
+**Integration partners** connect via webhooks or NATS event subscriptions. No account
+is required — they subscribe to the event subjects they care about and react to them
+using their own infrastructure.
+
 ## Design principles
 
 - **Single-tenant** — one deployment per city, not SaaS multi-tenancy
@@ -36,7 +52,7 @@ After startup:
 
 ```
                     ┌─────────┐
-         citizen ──▶│ Caddy   │◀── staff browser
+        resident ──▶│ Caddy   │◀── staff browser
                     └────┬────┘
                          │
                     ┌────▼────┐

@@ -167,6 +167,12 @@ func (h *Handler) CreatePermit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start durable workflow. Non-fatal: existing permits without a workflow
+	// execution fall back to HTTP validation for status updates.
+	if err := h.workflow.StartWorkflow(r.Context(), "permit", resp.ID, residentID); err != nil {
+		slog.Warn("failed to start permit workflow", "permit_id", resp.ID, "error", err)
+	}
+
 	writeJSON(w, http.StatusCreated, resp)
 }
 
@@ -284,8 +290,8 @@ func (h *Handler) UpdatePermitStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate transition with workflow service
-	if err := h.workflow.ValidateTransition(r.Context(), "permit", permit.Status, req.Status, req.Role); err != nil {
+	// Validate transition via Temporal Update (falls back to HTTP for legacy permits).
+	if err := h.workflow.ValidateTransition(r.Context(), "permit", chi.URLParam(r, "id"), permit.Status, req.Status, req.Role); err != nil {
 		writeError(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
 	}

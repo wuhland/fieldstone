@@ -9,7 +9,8 @@ type Config struct {
 	config.BaseConfig
 	DatabaseDSN        string `env:"PERMITS_DATABASE_DSN"  env-required:"true"`
 	Addr               string `env:"PERMITS_ADDR"          env-default:":8081"`
-	WorkflowServiceURL string `env:"WORKFLOW_SERVICE_URL"  env-required:"true"`
+	WorkflowServiceURL string `env:"WORKFLOW_SERVICE_URL"  env-required:"true"` // HTTP fallback + initial status
+	TemporalHost       string `env:"TEMPORAL_HOST"         env-required:"true"`
 	IdentityServiceURL string `env:"IDENTITY_SERVICE_URL"  env-required:"true"`
 }
 

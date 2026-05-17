@@ -8,15 +8,25 @@ Public-facing API gateway. Validates JWTs (or bypasses validation when
 `DEV_DISABLE_AUTH=true`), rate-limits public endpoints using Redis-backed
 sliding-window counters, and proxies to internal services.
 
-**Public routes** (no auth, rate-limited to `RATE_LIMIT_PER_MIN` per IP):
+**Truly public route** (no auth required, rate-limited):
+- `GET /v1/permits/{id}/status` — check permit status without authenticating
+
+**Resident-capable routes** (resident or staff JWT required, rate-limited):
 - `POST /v1/requests` — submit a 311 service request
-- `GET /v1/permits/{id}/status` — check permit status
+- `GET /v1/requests/{id}` — residents read own submission; staff read any
 - `POST /v1/records/foia` — submit a FOIA request
+- `GET /v1/records/foia/{id}` — residents read own submission; staff read any
+- `POST /v1/permits` — submit a permit application
+- `GET /v1/permits/{id}` — residents read own submission; staff read any
 
-**Staff routes** (JWT required in production):
-All other `/v1/*` paths.
+When `RESIDENT_OIDC_ISSUER_URL` is not configured, these routes accept only staff
+JWTs — residents cannot self-submit until a resident OIDC provider is configured.
 
-**Configuration**: `REDIS_URL`, `RATE_LIMIT_PER_MIN` (default 100), `DEV_DISABLE_AUTH`
+**Staff-only routes** (staff JWT required):
+All other `/v1/*` paths — list endpoints, status/assignment management, identity,
+audit, webhooks, workflow.
+
+**Configuration**: `REDIS_URL`, `RATE_LIMIT_PER_MIN` (default 100), `DEV_DISABLE_AUTH`, `RESIDENT_OIDC_ISSUER_URL`
 
 ## identity (port 8084)
 
@@ -54,11 +64,13 @@ Events published: `permit.created`, `permit.status_changed`, `inspection.schedul
 
 ## requests (port 8082)
 
-311 service requests. `POST /v1/requests` is a public endpoint (no auth); all other
-routes require staff authentication. Metadata validated against the `service_request` schema.
+311 service requests. `POST /v1/requests` requires a resident or staff JWT; the
+authenticated `sub` claim is stored as `resident_id` so residents can retrieve their
+own submissions. Staff management routes require a staff JWT. Metadata validated
+against the `service_request` schema.
 
 - `GET /v1/requests` — paginated list; filter with `?status=`
-- `POST /v1/requests` — **public**; `{request_type, department_id, description, submitter_email?, location?, metadata?}`
+- `POST /v1/requests` — resident or staff JWT required; `{request_type, department_id, description, submitter_email?, location?, metadata?}`
 - `GET /v1/requests/{id}` — single request
 - `PATCH /v1/requests/{id}/status` — `{status, role}`; terminal statuses set `closed_at`
 - `PATCH /v1/requests/{id}/assign` — `{assigned_to, role}`; validates `open→assigned` via workflow
@@ -67,27 +79,45 @@ Events published: `service_request.created`, `service_request.assigned`, `servic
 
 ## records (port 8083)
 
-FOIA request tracking. `POST /v1/records/foia` is public. Metadata validated against
+FOIA request tracking. `POST /v1/records/foia` requires a resident or staff JWT; the
+authenticated `sub` claim is stored as `resident_id`. Metadata validated against
 the `foia_request` schema. `due_date` is a `DATE` field serialized as `"YYYY-MM-DD"`.
 
 - `GET /v1/records/foia` — paginated list; filter with `?status=`
-- `POST /v1/records/foia` — **public**; `{department_id, requester_name, requester_email, description, due_date?, metadata?}`
+- `POST /v1/records/foia` — resident or staff JWT required; `{department_id, requester_name, requester_email, description, due_date?, metadata?}`
 - `GET /v1/records/foia/{id}` — single FOIA request
 - `PATCH /v1/records/foia/{id}/status` — `{status, role}`; terminal statuses (`fulfilled`, `denied`, `withdrawn`) set `closed_at`
 
 Events published: `foia_request.created`, `foia_request.status_changed`
 
-## workflow (port 8085)
+## workflow-worker (port 8085)
 
-Configurable state machine engine. Reads YAML configs from `/etc/fieldstone/workflows/`
-at startup and logs each loaded config. Has no database.
+Temporal worker and workflow configuration HTTP server. Reads YAML configs from
+`/etc/fieldstone/workflows/` at startup. Connects to the Temporal server to run
+workflow and activity functions.
 
-- `GET /v1/workflow/{resource_type}/statuses` — valid statuses
-- `GET /v1/workflow/{resource_type}/transitions` — valid transitions with role requirements
-- `POST /v1/workflow/{resource_type}/validate` — `{from, to, role}` → 200 or 422
-- `GET /v1/workflow/{resource_type}/initial` — initial status for new resources
+**Temporal responsibilities**
+- Registers `PermitWorkflow`, `ServiceRequestWorkflow`, `FOIARequestWorkflow` on
+  the `fieldstone` task queue.
+- Each workflow function validates staff transitions via the `validate-transition`
+  Update handler, handles resident `withdraw` signals, and tracks lifecycle until
+  a terminal state is reached.
+- Activities (called from signal/timer handlers) write to domain DBs and publish
+  events via the outbox. Activities are retried automatically on failure.
+
+**HTTP endpoints** (same interface as the retired `workflow` service; used by the
+gateway proxy and domain service clients for config queries and fallback validation):
+- `GET /v1/workflow/{resource_type}/statuses`
+- `GET /v1/workflow/{resource_type}/transitions`
+- `GET /v1/workflow/{resource_type}/config` — full WorkflowConfig (used by domain
+  clients when starting new workflow executions)
+- `POST /v1/workflow/{resource_type}/validate` — fallback for pre-Temporal records
+- `GET /v1/workflow/{resource_type}/initial`
 
 Default resource types: `permit`, `service_request`, `foia_request`
+
+**Configuration**: `TEMPORAL_HOST`, `WORKFLOWS_DIR`, `PERMITS_DATABASE_DSN`,
+`REQUESTS_DATABASE_DSN`, `RECORDS_DATABASE_DSN`
 
 ## webhooks (port 8086)
 
@@ -148,5 +178,10 @@ by `occurred_at` with monthly partitions (2025–2030).
 
 ## notify (port 8088)
 
-Stub service for future email/SMS. Currently subscribes to all events, logs them,
-and takes no action.
+Unimplemented stub. Subscribes to all events and logs them; no messages are sent.
+
+Resident notification (email on permit approval, FOIA fulfillment, etc.) is not
+built into the core platform. The supported pattern today is to register a webhook
+and route events to the city's existing notification infrastructure or a no-code
+integration tool (Zapier, Make). See [docs/extensions.md](extensions.md) for webhook
+setup and event subject patterns.

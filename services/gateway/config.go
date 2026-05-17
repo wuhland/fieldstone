@@ -17,7 +17,7 @@ type Config struct {
 	RequestsServiceURL string `env:"REQUESTS_SERVICE_URL"   env-required:"true"`
 	RecordsServiceURL  string `env:"RECORDS_SERVICE_URL"    env-required:"true"`
 	IdentityServiceURL string `env:"IDENTITY_SERVICE_URL"   env-required:"true"`
-	WorkflowServiceURL string `env:"WORKFLOW_SERVICE_URL"   env-required:"true"`
+	WorkflowWorkerURL  string `env:"WORKFLOW_WORKER_URL"    env-required:"true"`
 	WebhooksServiceURL string `env:"WEBHOOKS_SERVICE_URL"   env-required:"true"`
 	AuditServiceURL    string `env:"AUDIT_SERVICE_URL"      env-required:"true"`
 	RedisURL           string `env:"REDIS_URL"              env-default:""`

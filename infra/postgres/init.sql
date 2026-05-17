@@ -7,3 +7,8 @@ CREATE SCHEMA IF NOT EXISTS records;
 CREATE SCHEMA IF NOT EXISTS audit;
 CREATE SCHEMA IF NOT EXISTS webhooks;
 CREATE SCHEMA IF NOT EXISTS workflow;
+
+-- Temporal requires its own databases for workflow history and visibility.
+-- The temporal server auto-creates its schema tables on first startup.
+CREATE DATABASE temporal;
+CREATE DATABASE temporal_visibility;

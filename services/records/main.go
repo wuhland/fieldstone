@@ -62,7 +62,11 @@ func main() {
 
 	pub := &outbox.Publisher{}
 	go outbox.Run(ctx, pool, js)
-	wf := newWorkflowClient(cfg.WorkflowServiceURL)
+	wf, err := newWorkflowClient(cfg.TemporalHost, cfg.WorkflowServiceURL)
+	if err != nil {
+		slog.Error("failed to create workflow client", "error", err)
+		os.Exit(1)
+	}
 	sv := newSchemaValidator(cfg.IdentityServiceURL)
 
 	h := handlers.New(pool, recordsdb.New(pool), pub, wf, sv)

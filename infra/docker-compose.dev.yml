@@ -48,7 +48,11 @@ services:
     ports:
       - "8083:8083"
 
-  workflow:
+  temporal-ui:
+    ports:
+      - "8233:8080"
+
+  workflow-worker:
     environment:
       ENVIRONMENT: development
       LOG_LEVEL: debug

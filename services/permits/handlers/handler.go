@@ -24,10 +24,16 @@ type Publisher interface {
 	PublishTx(ctx context.Context, tx pgx.Tx, subject, sourceService, eventType string, payload any) error
 }
 
-// WorkflowClient validates status transitions against the workflow service.
+// WorkflowClient validates and records status transitions via Temporal.
 type WorkflowClient interface {
-	ValidateTransition(ctx context.Context, resourceType, from, to, role string) error
 	GetInitialStatus(ctx context.Context, resourceType string) (string, error)
+	// StartWorkflow starts a durable Temporal workflow for a newly created resource.
+	// The client fetches the YAML config from the workflow-worker internally.
+	StartWorkflow(ctx context.Context, resourceType, resourceID string, residentID *string) error
+	// ValidateTransition validates the transition via Temporal Update (with HTTP fallback
+	// for resources that predate Temporal adoption). Requires the resourceID to locate
+	// the running workflow execution.
+	ValidateTransition(ctx context.Context, resourceType, resourceID, from, to, role string) error
 }
 
 // SchemaValidator fetches and validates metadata against a city-registered JSON Schema.

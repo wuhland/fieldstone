@@ -109,16 +109,54 @@ services:
     restart: unless-stopped
     profiles: ["records"]
 
-  workflow:
+  temporal:
+    image: temporalio/temporal:latest
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=postgres
+      - SKIP_DEFAULT_NAMESPACE_CREATION=false
+      - DYNAMIC_CONFIG_FILE_PATH=/etc/temporal/config/dynamicconfig.yaml
+    volumes:
+      - ./temporal/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD-SHELL", "nc -z localhost 7233 || exit 1"]
+      start_period: 30s
+    restart: unless-stopped
+    profiles: ["core"]
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    ports:
+      - "8233:8080"
+    depends_on:
+      temporal:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["core"]
+
+  workflow-worker:
     build:
       context: ..
-      dockerfile: services/workflow/Dockerfile
+      dockerfile: services/workflow-worker/Dockerfile
     env_file: ../.env
     volumes:
       - ../config/workflows:/etc/fieldstone/workflows:ro
     depends_on:
-      nats:
+      temporal:
         condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
     restart: unless-stopped
     profiles: ["core"]
 
@@ -219,6 +257,7 @@ services:
 
 volumes:
   postgres_data:
+  temporal_data:
   nats_data:
   caddy_data:
   caddy_config:
