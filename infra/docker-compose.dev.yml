@@ -21,13 +21,6 @@ services:
     volumes:
       - ..:/app
 
-  requests:
-    environment:
-      ENVIRONMENT: development
-      LOG_LEVEL: debug
-    ports:
-      - "8082:8082"
-
   identity:
     environment:
       ENVIRONMENT: development
