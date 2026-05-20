@@ -52,6 +52,10 @@ services:
     ports:
       - "8233:8080"
 
+  swagger-ui:
+    ports:
+      - "8234:8080"
+
   workflow-worker:
     environment:
       ENVIRONMENT: development

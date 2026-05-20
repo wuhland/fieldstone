@@ -143,6 +143,15 @@ services:
     restart: unless-stopped
     profiles: ["core"]
 
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    environment:
+      SWAGGER_JSON: /openapi.json
+    volumes:
+      - ../services/gateway/docs/swagger.json:/openapi.json:ro
+    restart: unless-stopped
+    profiles: ["core"]
+
   workflow-worker:
     build:
       context: ..

@@ -9,6 +9,11 @@
         reverse_proxy gateway:8080
     }
 
+    # Route API docs to the gateway
+    handle /docs* {
+        reverse_proxy gateway:8080
+    }
+
     # Route everything else to the frontend
     handle {
         reverse_proxy frontend:3000
