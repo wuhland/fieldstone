@@ -30,6 +30,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	svcs, err := loadServicesConfig(cfg.ServicesConfigPath)
+	if err != nil {
+		slog.Error("failed to load services config", "error", err, "path", cfg.ServicesConfigPath)
+		os.Exit(1)
+	}
+	if err := svcs.validate(); err != nil {
+		slog.Error("invalid services config", "error", err)
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
 
 	// staffAuthMW validates staff OIDC JWTs (single issuer).
@@ -103,7 +113,7 @@ func main() {
 	// Public route: permit status is readable without authentication.
 	r.Group(func(r chi.Router) {
 		r.Use(rateLimitMiddleware(rl, cfg.RateLimitPerMin))
-		r.Get("/v1/permits/{id}/status", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Get("/v1/permits/{id}/status", svcs.handler("permits").ServeHTTP)
 	})
 
 	// Resident-capable routes: accept both staff and resident JWTs.
@@ -112,36 +122,36 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(rateLimitMiddleware(rl, cfg.RateLimitPerMin))
 		r.Use(residentAuthMW)
-		r.Post("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
-		r.Get("/v1/requests/{id}", newProxy(cfg.RequestsServiceURL).ServeHTTP)
-		r.Post("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)
-		r.Get("/v1/records/foia/{id}", newProxy(cfg.RecordsServiceURL).ServeHTTP)
-		r.Post("/v1/permits", newProxy(cfg.PermitsServiceURL).ServeHTTP)
-		r.Get("/v1/permits/{id}", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Post("/v1/requests", svcs.handler("requests").ServeHTTP)
+		r.Get("/v1/requests/{id}", svcs.handler("requests").ServeHTTP)
+		r.Post("/v1/records/foia", svcs.handler("records").ServeHTTP)
+		r.Get("/v1/records/foia/{id}", svcs.handler("records").ServeHTTP)
+		r.Post("/v1/permits", svcs.handler("permits").ServeHTTP)
+		r.Get("/v1/permits/{id}", svcs.handler("permits").ServeHTTP)
 	})
 
 	// Staff-only routes: reject resident JWTs (wrong issuer → 401).
 	r.Group(func(r chi.Router) {
 		r.Use(staffAuthMW)
 		// Requests management
-		r.Get("/v1/requests", newProxy(cfg.RequestsServiceURL).ServeHTTP)
-		r.Patch("/v1/requests/{id}/status", newProxy(cfg.RequestsServiceURL).ServeHTTP)
-		r.Patch("/v1/requests/{id}/assign", newProxy(cfg.RequestsServiceURL).ServeHTTP)
+		r.Get("/v1/requests", svcs.handler("requests").ServeHTTP)
+		r.Patch("/v1/requests/{id}/status", svcs.handler("requests").ServeHTTP)
+		r.Patch("/v1/requests/{id}/assign", svcs.handler("requests").ServeHTTP)
 		// Records management
-		r.Get("/v1/records/foia", newProxy(cfg.RecordsServiceURL).ServeHTTP)
-		r.Patch("/v1/records/foia/{id}/status", newProxy(cfg.RecordsServiceURL).ServeHTTP)
+		r.Get("/v1/records/foia", svcs.handler("records").ServeHTTP)
+		r.Patch("/v1/records/foia/{id}/status", svcs.handler("records").ServeHTTP)
 		// Permits management
-		r.Get("/v1/permits", newProxy(cfg.PermitsServiceURL).ServeHTTP)
-		r.Patch("/v1/permits/{id}/status", newProxy(cfg.PermitsServiceURL).ServeHTTP)
-		r.Post("/v1/permits/{id}/inspections", newProxy(cfg.PermitsServiceURL).ServeHTTP)
-		r.Patch("/v1/permits/{id}/inspections/{iid}", newProxy(cfg.PermitsServiceURL).ServeHTTP)
+		r.Get("/v1/permits", svcs.handler("permits").ServeHTTP)
+		r.Patch("/v1/permits/{id}/status", svcs.handler("permits").ServeHTTP)
+		r.Post("/v1/permits/{id}/inspections", svcs.handler("permits").ServeHTTP)
+		r.Patch("/v1/permits/{id}/inspections/{iid}", svcs.handler("permits").ServeHTTP)
 		// Identity, config, and platform services
-		r.Mount("/v1/users", newProxy(cfg.IdentityServiceURL))
-		r.Mount("/v1/departments", newProxy(cfg.IdentityServiceURL))
-		r.Mount("/v1/config", newProxy(cfg.IdentityServiceURL))
-		r.Mount("/v1/audit", newProxy(cfg.AuditServiceURL))
-		r.Mount("/v1/webhooks", newProxy(cfg.WebhooksServiceURL))
-		r.Mount("/v1/workflow", newProxy(cfg.WorkflowWorkerURL))
+		r.Mount("/v1/users", svcs.handler("identity"))
+		r.Mount("/v1/departments", svcs.handler("identity"))
+		r.Mount("/v1/config", svcs.handler("identity"))
+		r.Mount("/v1/audit", svcs.handler("audit"))
+		r.Mount("/v1/webhooks", svcs.handler("webhooks"))
+		r.Mount("/v1/workflow", svcs.handler("workflow"))
 	})
 
 	srv := &http.Server{

@@ -1,0 +1,37 @@
+# Fieldstone service configuration
+#
+# Enable or disable domain services for this deployment. A disabled service's
+# routes return HTTP 503 so API clients can distinguish "service off" from
+# "route not found" (404). The gateway must be restarted to pick up changes.
+#
+# This file is mounted read-only into the gateway container at startup.
+# For local development outside Docker set SERVICES_CONFIG=./config/services.yaml.
+
+services:
+  permits:
+    enabled: true
+    url: http://permits:8081
+
+  requests:
+    enabled: true
+    url: http://requests:8082
+
+  records:
+    enabled: true
+    url: http://records:8083
+
+  identity:
+    enabled: true
+    url: http://identity:8084
+
+  workflow:
+    enabled: true
+    url: http://workflow-worker:8085
+
+  webhooks:
+    enabled: true
+    url: http://webhooks:8086
+
+  audit:
+    enabled: true
+    url: http://audit:8087

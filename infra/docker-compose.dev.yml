@@ -17,8 +17,16 @@ services:
     environment:
       ENVIRONMENT: development
       LOG_LEVEL: debug
+      SERVICES_CONFIG: /etc/fieldstone/services.yaml
     volumes:
       - ..:/app
+
+  requests:
+    environment:
+      ENVIRONMENT: development
+      LOG_LEVEL: debug
+    ports:
+      - "8082:8082"
 
   identity:
     environment:
