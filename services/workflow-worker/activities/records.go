@@ -69,3 +69,29 @@ func (a *RecordsActivities) UpdateFOIAStatus(ctx context.Context, params UpdateF
 	slog.Info("FOIA status updated by activity", "request_id", params.RequestID, "status", params.NewStatus)
 	return nil
 }
+
+// DeadlineExceededParams is the input for NotifyDeadlineExceeded.
+type DeadlineExceededParams struct {
+	RequestID string
+}
+
+// NotifyDeadlineExceeded publishes a deadline_exceeded event for the given FOIA
+// request. It does not change the request's status — staff must still act.
+func (a *RecordsActivities) NotifyDeadlineExceeded(ctx context.Context, params DeadlineExceededParams) error {
+	tx, err := a.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if err := a.pub.PublishTx(ctx, tx, events.SubjectFOIADeadlineExceeded, "records",
+		events.SubjectFOIADeadlineExceeded, map[string]any{"request_id": params.RequestID}); err != nil {
+		return fmt.Errorf("publish event: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	slog.Info("FOIA deadline exceeded notification published", "request_id", params.RequestID)
+	return nil
+}

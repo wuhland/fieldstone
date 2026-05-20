@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -180,7 +181,12 @@ func (h *Handler) CreateFOIARequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.workflow.StartWorkflow(r.Context(), "foia_request", resp.ID, residentID); err != nil {
+	var deadline *time.Time
+	if dueDate.Valid {
+		t := dueDate.Time
+		deadline = &t
+	}
+	if err := h.workflow.StartWorkflow(r.Context(), "foia_request", resp.ID, residentID, deadline); err != nil {
 		slog.Warn("failed to start foia_request workflow", "request_id", resp.ID, "error", err)
 	}
 

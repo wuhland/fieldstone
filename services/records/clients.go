@@ -66,9 +66,8 @@ func (c *temporalWorkflowClient) GetInitialStatus(ctx context.Context, resourceT
 
 // StartWorkflow starts a durable Temporal workflow for a newly created resource.
 // Fetches the YAML config from the workflow-worker so it is baked into the
-// workflow's durable input. Non-fatal: if Temporal is unavailable the resource
-// still exists in the DB and status updates fall back to HTTP validation.
-func (c *temporalWorkflowClient) StartWorkflow(ctx context.Context, resourceType, resourceID string, residentID *string) error {
+// workflow's durable input. deadline is optional and used for FOIA due-date timers.
+func (c *temporalWorkflowClient) StartWorkflow(ctx context.Context, resourceType, resourceID string, residentID *string, deadline *time.Time) error {
 	cfg, err := c.fetchConfig(ctx, resourceType)
 	if err != nil {
 		return fmt.Errorf("fetch workflow config: %w", err)
@@ -77,6 +76,7 @@ func (c *temporalWorkflowClient) StartWorkflow(ctx context.Context, resourceType
 		ResourceID: resourceID,
 		ResidentID: residentID,
 		Config:     *cfg,
+		Deadline:   deadline,
 	}
 	opts := client.StartWorkflowOptions{
 		ID:                       temporalclient.WorkflowID(resourceType, resourceID),

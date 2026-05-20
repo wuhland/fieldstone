@@ -1,18 +1,19 @@
 package workflows
 
 import (
+	"time"
+
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
 	wftypes "github.com/fieldstone/fieldstone/internal/workflows"
+	workeractivities "github.com/fieldstone/fieldstone/services/workflow-worker/activities"
 )
 
 // PermitWorkflow is the durable execution for a single permit application.
-// It registers an Update handler that domain service handlers call to validate
-// and record every status transition. The workflow completes when the permit
-// reaches a terminal state (approved, rejected, or expired).
-//
-// Future: signal handlers for resident withdrawal and inspector results will
-// be wired to activities that write to the permits DB.
+// It validates every status transition via an Update handler, fires an auto-expiry
+// timer when the permit reaches a status with auto_expire_after configured, and
+// supports resident withdrawal via signal.
 func PermitWorkflow(ctx workflow.Context, input wftypes.WorkflowInput) error {
 	completed := false
 
@@ -24,6 +25,28 @@ func PermitWorkflow(ctx workflow.Context, input wftypes.WorkflowInput) error {
 			}
 			if input.Config.IsTerminal(req.To) {
 				completed = true
+				return nil
+			}
+			if d := input.Config.AutoExpireAfterDuration(req.To); d > 0 {
+				toStatus := req.To
+				workflow.Go(ctx, func(timerCtx workflow.Context) {
+					_ = workflow.Sleep(timerCtx, d)
+					if completed {
+						return
+					}
+					ao := workflow.WithActivityOptions(timerCtx, workflow.ActivityOptions{
+						StartToCloseTimeout: 30 * time.Second,
+						RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: 5},
+					})
+					var a *workeractivities.PermitActivities
+					_ = workflow.ExecuteActivity(ao, a.UpdatePermitStatus,
+						workeractivities.UpdatePermitStatusParams{
+							PermitID:  input.ResourceID,
+							NewStatus: "expired",
+							OldStatus: toStatus,
+						}).Get(timerCtx, nil)
+					completed = true
+				})
 			}
 			return nil
 		},
@@ -32,7 +55,6 @@ func PermitWorkflow(ctx workflow.Context, input wftypes.WorkflowInput) error {
 		return err
 	}
 
-	// Signal channel for future resident withdrawal support.
 	withdrawCh := workflow.GetSignalChannel(ctx, "withdraw")
 	workflow.Go(ctx, func(ctx workflow.Context) {
 		var sig wftypes.WithdrawSignal

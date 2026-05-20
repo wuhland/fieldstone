@@ -9,7 +9,8 @@ statuses:
     terminal: false
   - name: approved
     label: "Approved"
-    terminal: true
+    terminal: false
+    auto_expire_after: "8760h"
   - name: rejected
     label: "Rejected"
     terminal: true

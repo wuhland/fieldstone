@@ -14,11 +14,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.temporal.io/sdk/worker"
 
 	"github.com/fieldstone/fieldstone/internal/db"
 	"github.com/fieldstone/fieldstone/internal/events"
 	"github.com/fieldstone/fieldstone/internal/middleware"
 	natsconn "github.com/fieldstone/fieldstone/internal/nats"
+	temporalclient "github.com/fieldstone/fieldstone/internal/temporal"
 	webhooksdb "github.com/fieldstone/fieldstone/services/webhooks/db/generated"
 	"github.com/fieldstone/fieldstone/services/webhooks/handlers"
 )
@@ -60,17 +62,34 @@ func main() {
 	}
 	defer nc.Drain()
 
+	tc, err := temporalclient.NewClient(cfg.TemporalHost)
+	if err != nil {
+		slog.Error("failed to connect to Temporal", "error", err)
+		os.Exit(1)
+	}
+	defer tc.Close()
+
 	q := webhooksdb.New(pool)
 
-	if err := setupDispatcher(js, q); err != nil {
+	acts := &WebhookDeliveryActivities{q: q}
+	w := worker.New(tc, WebhookTaskQueue, worker.Options{})
+	w.RegisterWorkflow(WebhookDeliveryWorkflow)
+	w.RegisterActivity(acts)
+
+	go func() {
+		if err := w.Run(worker.InterruptCh()); err != nil {
+			slog.Error("temporal worker error", "error", err)
+		}
+	}()
+
+	if err := setupDispatcher(js, q, tc); err != nil {
 		slog.Error("failed to subscribe to events", "error", err)
 		os.Exit(1)
 	}
 
-	// dispatchFn wraps deliverToEndpoint so handlers/webhooks.go doesn't
-	// need to import the dispatcher package directly.
+	// dispatchFn starts a durable delivery workflow; used by TestWebhook.
 	dispatchFn := func(ep *webhooksdb.Endpoint, env events.EventEnvelope) {
-		deliverToEndpoint(context.Background(), q, ep, env)
+		startDeliveryWorkflow(context.Background(), tc, ep, env)
 	}
 
 	h := handlers.NewWebhookHandler(pool, q, dispatchFn)

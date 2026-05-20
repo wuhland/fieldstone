@@ -82,7 +82,7 @@ func (c *temporalWorkflowClient) StartWorkflow(ctx context.Context, resourceType
 		ID:                       temporalclient.WorkflowID(resourceType, resourceID),
 		TaskQueue:                temporalclient.TaskQueue,
 		WorkflowIDReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		WorkflowExecutionTimeout: 365 * 24 * time.Hour,
+		WorkflowExecutionTimeout: 3 * 365 * 24 * time.Hour,
 	}
 	_, err = c.temporal.ExecuteWorkflow(ctx, opts, workflowNameFor(resourceType), input)
 	return err

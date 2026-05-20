@@ -7,8 +7,9 @@ import (
 
 type Config struct {
 	config.BaseConfig
-	DatabaseDSN string `env:"WEBHOOKS_DATABASE_DSN" env-required:"true"`
-	Addr        string `env:"WEBHOOKS_ADDR"         env-default:":8086"`
+	DatabaseDSN  string `env:"WEBHOOKS_DATABASE_DSN" env-required:"true"`
+	Addr         string `env:"WEBHOOKS_ADDR"         env-default:":8086"`
+	TemporalHost string `env:"TEMPORAL_HOST"         env-default:"localhost:7233"`
 }
 
 func loadConfig() (*Config, error) {

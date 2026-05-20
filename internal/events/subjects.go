@@ -10,5 +10,6 @@ const (
 	SubjectFOIARequestCreated       = "fieldstone.records.foia_request.created"
 	SubjectFOIARequestStatusChanged = "fieldstone.records.foia_request.status_changed"
 	SubjectUserProvisioned          = "fieldstone.identity.user.provisioned"
+	SubjectFOIADeadlineExceeded     = "fieldstone.records.foia_request.deadline_exceeded"
 	SubjectAll                      = "fieldstone.>"
 )

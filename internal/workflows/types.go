@@ -1,6 +1,9 @@
 package workflows
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // WorkflowConfig is the YAML-defined state machine for a resource type.
 // It is passed to workflow functions at start time so the config is baked
@@ -13,9 +16,10 @@ type WorkflowConfig struct {
 }
 
 type Status struct {
-	Name     string `yaml:"name"     json:"name"`
-	Label    string `yaml:"label"    json:"label"`
-	Terminal bool   `yaml:"terminal" json:"terminal"`
+	Name            string `yaml:"name"                        json:"name"`
+	Label           string `yaml:"label"                       json:"label"`
+	Terminal        bool   `yaml:"terminal"                    json:"terminal"`
+	AutoExpireAfter string `yaml:"auto_expire_after,omitempty" json:"auto_expire_after,omitempty"`
 }
 
 type Transition struct {
@@ -30,6 +34,7 @@ type WorkflowInput struct {
 	ResourceID string
 	ResidentID *string
 	Config     WorkflowConfig
+	Deadline   *time.Time // optional: used by FOIA workflows to fire deadline notifications
 }
 
 // TransitionRequest is the Update payload sent by domain service handlers
@@ -44,6 +49,20 @@ type TransitionRequest struct {
 // their own submission.
 type WithdrawSignal struct {
 	ResidentID string `json:"resident_id"`
+}
+
+// AutoExpireAfterDuration returns the configured auto-expiry duration for a status, or 0 if not set.
+func (c WorkflowConfig) AutoExpireAfterDuration(statusName string) time.Duration {
+	for _, s := range c.Statuses {
+		if s.Name == statusName && s.AutoExpireAfter != "" {
+			d, err := time.ParseDuration(s.AutoExpireAfter)
+			if err != nil {
+				return 0
+			}
+			return d
+		}
+	}
+	return 0
 }
 
 // IsTerminal returns true if status is terminal in this config.

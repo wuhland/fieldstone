@@ -27,7 +27,7 @@ type Publisher interface {
 // WorkflowClient validates and records status transitions via Temporal.
 type WorkflowClient interface {
 	GetInitialStatus(ctx context.Context, resourceType string) (string, error)
-	StartWorkflow(ctx context.Context, resourceType, resourceID string, residentID *string) error
+	StartWorkflow(ctx context.Context, resourceType, resourceID string, residentID *string, deadline *time.Time) error
 	ValidateTransition(ctx context.Context, resourceType, resourceID, from, to, role string) error
 }
 

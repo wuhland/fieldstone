@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
+
+	"go.temporal.io/sdk/client"
+	enumspb "go.temporal.io/api/enums/v1"
 
 	"github.com/fieldstone/fieldstone/internal/events"
 	webhooksdb "github.com/fieldstone/fieldstone/services/webhooks/db/generated"
@@ -12,10 +16,8 @@ import (
 )
 
 // setupDispatcher subscribes to all fieldstone events and fans them out to
-// matching registered webhook endpoints. The NATS message is acked immediately;
-// HTTP delivery happens in a separate goroutine so a slow endpoint never blocks
-// event processing.
-func setupDispatcher(js nats.JetStreamContext, q *webhooksdb.Queries) error {
+// matching registered webhook endpoints via durable Temporal workflows.
+func setupDispatcher(js nats.JetStreamContext, q *webhooksdb.Queries, tc client.Client) error {
 	_, err := js.Subscribe(events.SubjectAll, func(msg *nats.Msg) {
 		var env events.EventEnvelope
 		if err := json.Unmarshal(msg.Data, &env); err != nil {
@@ -23,18 +25,17 @@ func setupDispatcher(js nats.JetStreamContext, q *webhooksdb.Queries) error {
 			msg.Nak()
 			return
 		}
-		// Ack before dispatching — webhook delivery is best-effort and must not
-		// block NATS message processing.
+		// Ack before dispatching — workflow start is non-blocking and durable.
 		msg.Ack()
 
-		go fanOut(context.Background(), q, env)
+		go fanOut(context.Background(), q, tc, env)
 	}, nats.Durable("webhooks-service"), nats.ManualAck())
 	return err
 }
 
-// fanOut loads all enabled endpoints and dispatches to those whose event
-// patterns match the incoming event subject.
-func fanOut(ctx context.Context, q *webhooksdb.Queries, env events.EventEnvelope) {
+// fanOut loads all enabled endpoints and starts a delivery workflow for each
+// whose event patterns match the incoming event subject.
+func fanOut(ctx context.Context, q *webhooksdb.Queries, tc client.Client, env events.EventEnvelope) {
 	endpoints, err := q.ListEnabledEndpoints(ctx)
 	if err != nil {
 		slog.Error("list endpoints for dispatch", "error", err)
@@ -43,8 +44,29 @@ func fanOut(ctx context.Context, q *webhooksdb.Queries, env events.EventEnvelope
 	for _, ep := range endpoints {
 		if matchesAny(ep.Events, env.EventType) {
 			ep := ep
-			go deliverToEndpoint(ctx, q, ep, env)
+			startDeliveryWorkflow(ctx, tc, ep, env)
 		}
+	}
+}
+
+// startDeliveryWorkflow starts a WebhookDeliveryWorkflow for a single endpoint+event pair.
+// The workflow ID encodes both IDs so NATS redelivery is idempotent.
+func startDeliveryWorkflow(ctx context.Context, tc client.Client, ep *webhooksdb.Endpoint, env events.EventEnvelope) {
+	opts := client.StartWorkflowOptions{
+		ID:                    fmt.Sprintf("webhook-%s-%s", webhooksdb.UUIDToStr(ep.ID), env.ID),
+		TaskQueue:             WebhookTaskQueue,
+		WorkflowIDReusePolicy: enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+	}
+	if _, err := tc.ExecuteWorkflow(ctx, opts, WebhookDeliveryWorkflow, WebhookDeliveryInput{
+		EndpointID: webhooksdb.UUIDToStr(ep.ID),
+		URL:        ep.URL,
+		SecretHash: ep.SecretHash,
+		Envelope:   env,
+	}); err != nil {
+		slog.Error("start webhook delivery workflow",
+			"endpoint_id", webhooksdb.UUIDToStr(ep.ID),
+			"event_id", env.ID,
+			"error", err)
 	}
 }
 
