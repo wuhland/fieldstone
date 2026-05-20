@@ -29,6 +29,8 @@ written in [MADR](https://adr.github.io/madr/) (Markdown Any Decision Records) f
 | [0020](0020-webhook-secret-plaintext-storage.md) | Webhook secret stored as plaintext for HMAC signing | Accepted — documented spec deviation |
 | [0021](0021-resident-oidc-public-submission-auth.md) | Resident identity via configurable OIDC for public submissions | Accepted |
 | [0022](0022-temporal-durable-workflow.md) | Temporal as durable workflow engine | Accepted — supersedes 0007 |
+| [0023](0023-temporal-timers-and-durable-webhooks.md) | Temporal timers and durable webhook delivery | Accepted — extends 0022 |
+| [0024](0024-config-file-driven-service-enablement.md) | Config-file-driven service enablement | Accepted |
 
 ## Format
 
